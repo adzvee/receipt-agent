@@ -21,7 +21,9 @@ class ExtractedLineItem(BaseModel):
 class ExtractedReceipt(BaseModel):
     vendor: str | None = Field(description="Store or business name.")
     purchase_date: str | None = Field(description="Date of purchase as YYYY-MM-DD.")
-    currency: str | None = Field(description="ISO 4217 code, e.g. USD, EUR, GBP.")
+    currency: str | None = Field(
+        description="ISO 4217 code, e.g. USD, EUR, GBP. Null unless a symbol or code is printed."
+    )
     line_items: list[ExtractedLineItem]
     subtotal: float | None
     tax: float | None
@@ -39,6 +41,8 @@ Rules:
 - Copy every number exactly as printed. Do NOT calculate, correct, or fill in values that
   aren't on the receipt; use null instead. A separate step checks the arithmetic.
 - Amounts are plain numbers without currency symbols.
+- Set currency only if a currency symbol or code is printed. Treat "$" as USD unless the
+  receipt shows another dollar currency (e.g. CAD, AUD). If nothing is printed, use null.
 - Record discounts and coupons as line items with negative amounts.
 - `amount` is the total for the line (quantity x unit price), as printed.
 - If tax is already included in item prices (e.g. "VAT included"), still report the tax
@@ -57,11 +61,21 @@ def extract_receipt(llm: LLMClient, data: bytes, mime_type: str) -> ExtractedRec
 
 
 def money(value: float | None) -> Decimal | None:
-    """Convert an LLM float to a 2-decimal-place Decimal (via str, to avoid float artifacts)."""
+    """An LLM float as a Decimal with 2 places, matching the database's money columns."""
+    return _to_decimal(value, places=Decimal("0.01"))
+
+
+def quantity(value: float | None) -> Decimal | None:
+    """An LLM float as a Decimal with 3 places (e.g. 1.250 kg), matching the database column."""
+    return _to_decimal(value, places=Decimal("0.001"))
+
+
+def _to_decimal(value: float | None, places: Decimal) -> Decimal | None:
+    # Going through str() avoids float artifacts: Decimal(0.1) is 0.1000000000000000055...
     if value is None:
         return None
     try:
-        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return Decimal(str(value)).quantize(places, rounding=ROUND_HALF_UP)
     except InvalidOperation:
         return None
 

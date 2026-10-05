@@ -30,6 +30,17 @@ def test_upload_extracts_and_saves_receipt(client, fake_llm, storage):
     assert call["attachments"][0].mime_type == "image/png"
 
 
+def test_upload_response_matches_what_was_saved(client, db_session):
+    created = upload(client, PNG_BYTES).json()
+    db_session.expire_all()  # force the next read to come from the database, not memory
+
+    fetched = client.get(f"/receipts/{created['id']}").json()
+
+    assert fetched == created
+    assert fetched["line_items"][0]["quantity"] == "1.000"
+    assert fetched["subtotal"] == "7.75"
+
+
 def test_uploaded_file_is_stored_and_downloadable(client):
     receipt_id = upload(client, PDF_BYTES, "receipt.pdf").json()["id"]
 

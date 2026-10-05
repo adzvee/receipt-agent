@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.extraction import ExtractedReceipt, extract_receipt, money, parse_date
+from app.extraction import ExtractedReceipt, extract_receipt, money, parse_date, quantity
 from app.file_types import SUPPORTED_EXTENSIONS
 from app.llm import LLMClient, LLMError
 from app.models import LineItem, Receipt, ReceiptStatus
@@ -65,7 +65,7 @@ def apply_extraction(receipt: Receipt, extracted: ExtractedReceipt, today: date)
         LineItem(
             position=i,
             description=item.description,
-            quantity=item.quantity,
+            quantity=quantity(item.quantity),
             unit_price=money(item.unit_price),
             amount=money(item.amount),
         )
