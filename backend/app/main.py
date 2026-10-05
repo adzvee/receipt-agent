@@ -4,8 +4,10 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.db import DbSession
+from app.routers import receipts
 
 app = FastAPI(title="Receipt Agent", version="0.1.0")
+app.include_router(receipts.router)
 
 
 @app.get("/health")

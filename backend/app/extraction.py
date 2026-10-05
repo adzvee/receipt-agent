@@ -1,0 +1,75 @@
+"""Turning a receipt file into structured data with a vision LLM."""
+
+from datetime import date
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
+from pydantic import BaseModel, Field
+
+from app.llm import Attachment, LLMClient
+
+# What we ask the model to return. Money is a float here because LLM structured-output
+# schemas don't support decimals; it's converted to Decimal with `money()` right after.
+
+
+class ExtractedLineItem(BaseModel):
+    description: str
+    quantity: float | None = None
+    unit_price: float | None = None
+    amount: float = Field(description="Line total as printed. Discounts are negative.")
+
+
+class ExtractedReceipt(BaseModel):
+    vendor: str | None = Field(description="Store or business name.")
+    purchase_date: str | None = Field(description="Date of purchase as YYYY-MM-DD.")
+    currency: str | None = Field(description="ISO 4217 code, e.g. USD, EUR, GBP.")
+    line_items: list[ExtractedLineItem]
+    subtotal: float | None
+    tax: float | None
+    tip: float | None
+    total: float | None
+    payment_method: str | None = Field(
+        description="e.g. 'Cash', 'Visa ending 1234'. Never the full card number."
+    )
+
+
+EXTRACTION_PROMPT = """\
+You are extracting data from a receipt for bookkeeping.
+
+Rules:
+- Copy every number exactly as printed. Do NOT calculate, correct, or fill in values that
+  aren't on the receipt; use null instead. A separate step checks the arithmetic.
+- Amounts are plain numbers without currency symbols.
+- Record discounts and coupons as line items with negative amounts.
+- `amount` is the total for the line (quantity x unit price), as printed.
+- If tax is already included in item prices (e.g. "VAT included"), still report the tax
+  amount shown.
+- For payment_method, include at most the card brand and last 4 digits.
+- If the image is not a receipt, return nulls and an empty line_items list.
+"""
+
+
+def extract_receipt(llm: LLMClient, data: bytes, mime_type: str) -> ExtractedReceipt:
+    return llm.generate_structured(
+        prompt=EXTRACTION_PROMPT,
+        response_model=ExtractedReceipt,
+        attachments=[Attachment(data=data, mime_type=mime_type)],
+    )
+
+
+def money(value: float | None) -> Decimal | None:
+    """Convert an LLM float to a 2-decimal-place Decimal (via str, to avoid float artifacts)."""
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        return None
+
+
+def parse_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None

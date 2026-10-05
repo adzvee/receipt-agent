@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Uploaded receipt files (local storage)
+storage/
+
 # Python
 __pycache__/
 *.py[cod]
