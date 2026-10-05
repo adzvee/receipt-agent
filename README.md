@@ -54,16 +54,20 @@ cd backend
 pytest
 ```
 
-Tests mock the LLM, so no API key is needed. They do need the Postgres container running;
-each test runs inside a transaction that is rolled back, so your local data is untouched.
+Tests mock the LLM, so no API key is needed. They need the Postgres container running, and
+use a separate `receipts_test` database (created automatically) so your own receipts never
+affect results. Each test also runs inside a transaction that is rolled back afterwards.
 
 ## API
 
 | Method | Path | What it does |
 |---|---|---|
 | `POST` | `/receipts` | Upload a receipt (JPEG, PNG, WebP, or PDF, max 10 MB). Extracts, validates, and saves it. |
-| `GET` | `/receipts` | List receipts, newest first. |
-| `GET` | `/receipts/{id}` | One receipt with its line items and any validation issues. |
+| `GET` | `/receipts` | List receipts, newest first. `?needs_review=true` for flagged ones only. |
+| `GET` | `/receipts/categories` | The list of spending categories. |
+| `GET` | `/receipts/{id}` | One receipt with its line items, category, and flags. |
+| `PATCH` | `/receipts/{id}` | Correct the category, e.g. `{"category": "groceries"}`. |
+| `POST` | `/receipts/{id}/flags/{flag_id}/dismiss` | Mark a flag as reviewed. |
 | `GET` | `/receipts/{id}/file` | The original uploaded file. |
 
 Try it: `curl -F "file=@my-receipt.jpg" localhost:8000/receipts`, or use the interactive docs
@@ -79,8 +83,27 @@ at `/docs`.
 4. **Validate.** Plain Python checks that line items add up to the subtotal and that
    subtotal + tax + tip equals the total (allowing tax-inclusive receipts and 2¢ of
    rounding), and that vendor, date, and total are present and the date isn't in the future.
-5. **Save.** Any failed check is recorded and the receipt is flagged `needs_review`. If the
-   LLM call itself fails, the receipt is saved with `status: failed` so nothing is lost.
+5. **Save.** Any failed check becomes a flag. If the LLM call itself fails (after retrying
+   temporary errors), the receipt is saved with `status: failed` so nothing is lost.
+
+### Categorization, duplicates, and anomalies
+
+After extraction, each receipt is analyzed:
+
+- **Category.** One of a fixed list (groceries, dining, transportation, ...), so reports stay
+  consistent. If an earlier receipt from the same vendor already has a category, it's reused
+  (a category you set yourself always wins) and no LLM call is needed. Otherwise the LLM
+  picks one from the extracted text, with a one-sentence reason. Vendor names are
+  normalized first, so `STARBUCKS #1234` and `Starbucks` count as the same vendor.
+- **Duplicates.** Flagged if the exact same file was uploaded before, or if another receipt
+  has the same vendor, date, and total (e.g. a photo and the emailed PDF of one purchase).
+- **Unusual charges.** Flagged if the total is over 3x your median for that category (once
+  there are 5+ receipts to compare with), over 2.5x your median at that vendor (3+), or the
+  tip is over 30% of the subtotal. Medians are used so one big past purchase doesn't hide
+  new outliers. Only receipts in the same currency are compared.
+
+Every problem, from a math mismatch to a likely duplicate, is a **flag** with a plain-English
+message. A receipt `needs_review` while it has any flag that hasn't been dismissed.
 
 The LLM sits behind a small `LLMClient` interface (`app/llm/`), so Gemini can be swapped
 for another provider by adding one class.
@@ -100,6 +123,10 @@ receipt-agent/
 │   │   ├── receipt_service.py # Upload pipeline: store → extract → validate → save
 │   │   ├── extraction.py      # LLM schema + prompt
 │   │   ├── validation.py      # Arithmetic and sanity checks
+│   │   ├── categorization.py  # Vendor history, else LLM picks a category
+│   │   ├── duplicates.py      # Same file / same purchase detection
+│   │   ├── anomalies.py       # Unusual-charge rules
+│   │   ├── vendors.py         # Vendor name normalization and matching
 │   │   ├── file_types.py      # Detect file type from content
 │   │   ├── storage.py         # File storage (local disk; S3 later)
 │   │   └── llm/               # Provider-agnostic LLM wrapper + Gemini implementation
@@ -122,7 +149,7 @@ _TODO: link._
 
 - [x] 1. Project setup
 - [x] 2. Upload + extraction (images, PDFs) with validation
-- [ ] 3. Categorization, duplicate detection, anomaly flags
+- [x] 3. Categorization, duplicate detection, anomaly flags
 - [ ] 4. Q&A agent with read-only database tools
 - [ ] 5. Email forwarding (Postmark inbound webhook)
 - [ ] 6. Frontend: upload, list, flags, dashboard, chat

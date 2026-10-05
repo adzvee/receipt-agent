@@ -1,5 +1,6 @@
 from app.config import get_settings
 from app.extraction import EXTRACTION_PROMPT, ExtractedReceipt
+from app.llm import LLMError
 from tests.factories import make_extracted_receipt
 from tests.fakes import PDF_BYTES, PNG_BYTES
 
@@ -20,12 +21,11 @@ def test_upload_extracts_and_saves_receipt(client, fake_llm, storage):
     assert body["payment_method"] == "Visa ending 4242"
     assert [item["description"] for item in body["line_items"]] == ["Latte", "Croissant"]
     assert body["needs_review"] is False
-    assert body["validation_issues"] == []
+    assert body["flags"] == []
 
     # The LLM was sent the actual file with the extraction prompt.
-    [call] = fake_llm.calls
+    [call] = fake_llm.calls_for(ExtractedReceipt)
     assert call["prompt"] == EXTRACTION_PROMPT
-    assert call["response_model"] is ExtractedReceipt
     assert call["attachments"][0].data == PNG_BYTES
     assert call["attachments"][0].mime_type == "image/png"
 
@@ -52,16 +52,18 @@ def test_uploaded_file_is_stored_and_downloadable(client):
 
 
 def test_receipt_failing_validation_is_flagged(client, fake_llm):
-    fake_llm.response = make_extracted_receipt(total=50.00)
+    fake_llm.responses[ExtractedReceipt] = make_extracted_receipt(total=50.00)
 
     body = upload(client, PNG_BYTES).json()
 
     assert body["needs_review"] is True
-    assert [issue["code"] for issue in body["validation_issues"]] == ["total_mismatch"]
+    assert [(flag["kind"], flag["code"]) for flag in body["flags"]] == [
+        ("validation", "total_mismatch")
+    ]
 
 
 def test_llm_failure_keeps_file_and_marks_receipt_failed(client, fake_llm):
-    fake_llm.error = "model unavailable"
+    fake_llm.responses[ExtractedReceipt] = LLMError("model unavailable")
 
     response = upload(client, PNG_BYTES)
 
@@ -70,6 +72,8 @@ def test_llm_failure_keeps_file_and_marks_receipt_failed(client, fake_llm):
     assert body["status"] == "failed"
     assert body["extraction_error"] == "model unavailable"
     assert body["needs_review"] is True
+    assert [flag["code"] for flag in body["flags"]] == ["extraction_failed"]
+    assert body["category"] is None
     assert client.get(f"/receipts/{body['id']}/file").content == PNG_BYTES
 
 

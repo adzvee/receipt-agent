@@ -1,11 +1,14 @@
-"""Shapes of API responses. Kept separate from database models so the API is a stable contract."""
+"""Shapes of API requests and responses.
+
+Kept separate from the database models so the API stays a stable contract.
+"""
 
 from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import ReceiptStatus
+from app.models import Category, CategorySource, FlagKind, ReceiptStatus
 
 
 class LineItemOut(BaseModel):
@@ -17,9 +20,15 @@ class LineItemOut(BaseModel):
     amount: Decimal
 
 
-class ValidationIssueOut(BaseModel):
+class FlagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: FlagKind
     code: str
     message: str
+    related_receipt_id: int | None
+    dismissed_at: datetime | None
 
 
 class ReceiptOut(BaseModel):
@@ -42,5 +51,13 @@ class ReceiptOut(BaseModel):
     payment_method: str | None
     line_items: list[LineItemOut]
 
-    validation_issues: list[ValidationIssueOut]
+    category: Category | None
+    category_source: CategorySource | None
+    category_reason: str | None
+
+    flags: list[FlagOut]
     needs_review: bool
+
+
+class ReceiptUpdate(BaseModel):
+    category: Category

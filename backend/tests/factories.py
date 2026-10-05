@@ -1,6 +1,16 @@
 """Builders for fake test data. All vendors and amounts are made up."""
 
+import hashlib
+from datetime import date
+from decimal import Decimal
+from uuid import uuid4
+
+from sqlalchemy.orm import Session
+
+from app.categorization import CategoryDecision
 from app.extraction import ExtractedLineItem, ExtractedReceipt
+from app.models import Category, CategorySource, Receipt, ReceiptStatus
+from app.vendors import normalize_vendor
 
 
 def make_extracted_receipt(**overrides) -> ExtractedReceipt:
@@ -21,3 +31,37 @@ def make_extracted_receipt(**overrides) -> ExtractedReceipt:
     }
     fields.update(overrides)
     return ExtractedReceipt(**fields)
+
+
+def make_category_decision(category: Category = Category.DINING) -> CategoryDecision:
+    return CategoryDecision(category=category, reason="It's a café.")
+
+
+def add_receipt(
+    db: Session,
+    *,
+    vendor: str = "Corner Cafe",
+    total: str = "8.37",
+    purchase_date: date = date(2026, 9, 1),
+    category: Category | None = Category.DINING,
+    category_source: CategorySource | None = CategorySource.LLM,
+    currency: str | None = "USD",
+) -> Receipt:
+    """Insert an already-processed receipt directly, to set up history for a test."""
+    receipt = Receipt(
+        original_filename="seed.png",
+        content_type="image/png",
+        file_key=f"receipts/{uuid4().hex}.png",
+        file_sha256=hashlib.sha256(uuid4().bytes).hexdigest(),
+        status=ReceiptStatus.EXTRACTED,
+        vendor=vendor,
+        vendor_key=normalize_vendor(vendor),
+        purchase_date=purchase_date,
+        currency=currency,
+        total=Decimal(total),
+        category=category,
+        category_source=category_source,
+    )
+    db.add(receipt)
+    db.flush()
+    return receipt
