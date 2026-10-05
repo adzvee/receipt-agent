@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import Category, CategorySource, FlagKind, ReceiptStatus
+from app.models import Category, CategorySource, FlagKind, ReceiptSource, ReceiptStatus
 
 
 class LineItemOut(BaseModel):
@@ -36,6 +36,7 @@ class ReceiptOut(BaseModel):
 
     id: int
     created_at: datetime
+    source: ReceiptSource
     original_filename: str
     content_type: str
     status: ReceiptStatus

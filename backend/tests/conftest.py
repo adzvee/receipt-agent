@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.categorization import CategoryDecision
 from app.config import get_settings
 from app.db import get_db
+from app.email.inbound import EmailClassification
 from app.extraction import ExtractedReceipt
 from app.llm import get_llm
 from app.main import app
@@ -79,6 +80,9 @@ def fake_llm() -> FakeLLM:
         responses={
             ExtractedReceipt: make_extracted_receipt(),
             CategoryDecision: make_category_decision(),
+            EmailClassification: EmailClassification(
+                is_receipt=True, receipt_location="attachments", reason="It's a receipt."
+            ),
         }
     )
 

@@ -13,15 +13,22 @@ from app.anomalies import find_anomaly_flags
 from app.categorization import assign_category
 from app.duplicates import find_duplicate_flags
 from app.extraction import ExtractedReceipt, extract_receipt, money, parse_date, quantity
-from app.file_types import SUPPORTED_EXTENSIONS
+from app.file_types import FILE_EXTENSIONS
 from app.llm import LLMClient, LLMError
-from app.models import FlagKind, LineItem, Receipt, ReceiptFlag, ReceiptStatus
+from app.models import (
+    FlagKind,
+    LineItem,
+    Receipt,
+    ReceiptFlag,
+    ReceiptSource,
+    ReceiptStatus,
+)
 from app.storage import FileStorage
 from app.validation import validate_receipt
 from app.vendors import normalize_vendor
 
 
-def process_receipt_upload(
+def process_receipt_file(
     *,
     db: Session,
     storage: FileStorage,
@@ -29,11 +36,15 @@ def process_receipt_upload(
     filename: str,
     data: bytes,
     mime_type: str,
+    source: ReceiptSource = ReceiptSource.UPLOAD,
+    inbound_email_id: int | None = None,
 ) -> Receipt:
-    file_key = f"receipts/{uuid4().hex}{SUPPORTED_EXTENSIONS[mime_type]}"
+    file_key = f"receipts/{uuid4().hex}{FILE_EXTENSIONS[mime_type]}"
     storage.save(file_key, data, mime_type)
 
     receipt = Receipt(
+        source=source,
+        inbound_email_id=inbound_email_id,
         original_filename=filename,
         content_type=mime_type,
         file_key=file_key,

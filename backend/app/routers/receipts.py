@@ -11,7 +11,7 @@ from app.db import DbSession
 from app.file_types import sniff_mime_type
 from app.llm import LLMDep
 from app.models import Category, CategorySource, Receipt, ReceiptFlag
-from app.receipt_service import process_receipt_upload
+from app.receipt_service import process_receipt_file
 from app.schemas import ReceiptOut, ReceiptUpdate
 from app.storage import StorageDep
 
@@ -41,7 +41,7 @@ def upload_receipt(file: UploadFile, db: DbSession, storage: StorageDep, llm: LL
             "Unsupported file type. Upload a JPEG, PNG, or WebP image, or a PDF.",
         )
 
-    return process_receipt_upload(
+    return process_receipt_file(
         db=db,
         storage=storage,
         llm=llm,
@@ -98,7 +98,12 @@ def dismiss_flag(receipt_id: int, flag_id: int, db: DbSession) -> Receipt:
 @router.get("/{receipt_id}/file")
 def get_receipt_file(receipt_id: int, db: DbSession, storage: StorageDep) -> Response:
     receipt = _get_or_404(db, receipt_id)
-    return Response(content=storage.read(receipt.file_key), media_type=receipt.content_type)
+    return Response(
+        content=storage.read(receipt.file_key),
+        media_type=receipt.content_type,
+        # Stop browsers from guessing a different type (e.g. treating text as HTML).
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 
 def _get_or_404(db: Session, receipt_id: int) -> Receipt:

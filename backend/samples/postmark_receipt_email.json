@@ -1,0 +1,10 @@
+{
+  "MessageID": "sample-0001-blue-heron",
+  "From": "you@example.com",
+  "To": "receipts@inbound.example.com",
+  "Subject": "Fwd: Your receipt from Blue Heron Cafe",
+  "MailboxHash": "",
+  "TextBody": "",
+  "HtmlBody": "<html><head><style>td{padding:4px}</style></head><body><p>---------- Forwarded message ---------<br>From: Blue Heron Cafe &lt;receipts@blueheron.example.com&gt;<br>Date: Sun, Sep 28, 2026</p><h2>Thanks for visiting Blue Heron Cafe!</h2><table><tr><td>2 x Cappuccino</td><td>$8.50</td></tr><tr><td>Blueberry Muffin</td><td>$3.75</td></tr><tr><td>Subtotal</td><td>$12.25</td></tr><tr><td>Tax</td><td>$0.98</td></tr><tr><td><b>Total</b></td><td><b>$13.23</b></td></tr></table><p>Paid with Visa ending 4242</p><script>trackOpen()</script></body></html>",
+  "Attachments": []
+}

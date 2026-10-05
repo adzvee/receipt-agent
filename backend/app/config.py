@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     storage_dir: Path = REPO_ROOT / "storage"
     max_upload_bytes: int = 10 * 1024 * 1024  # 10 MB
 
+    # Postmark inbound webhook (HTTP Basic Auth). Leave empty to disable the endpoint.
+    postmark_inbound_username: str = ""
+    postmark_inbound_password: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

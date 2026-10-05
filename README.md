@@ -69,6 +69,7 @@ affect results. Each test also runs inside a transaction that is rolled back aft
 | `PATCH` | `/receipts/{id}` | Correct the category, e.g. `{"category": "groceries"}`. |
 | `POST` | `/receipts/{id}/flags/{flag_id}/dismiss` | Mark a flag as reviewed. |
 | `GET` | `/receipts/{id}/file` | The original uploaded file. |
+| `POST` | `/webhooks/postmark/inbound` | Receives forwarded emails from Postmark (HTTP Basic Auth). |
 | `POST` | `/chat` | Ask a question, e.g. `{"question": "How much did I spend on food in September?"}`. Returns the answer and which tools were used. |
 
 Try it: `curl -F "file=@my-receipt.jpg" localhost:8000/receipts`, or use the interactive docs
@@ -130,6 +131,36 @@ correct itself; spending totals skip unreadable receipts and open duplicates; di
 currencies are never added together; and receipt text in tool results is treated as data,
 not instructions.
 
+### Forwarding receipts by email
+
+[Postmark](https://postmarkapp.com/developer/webhooks/inbound-webhook) receives emails sent
+to an inbound address and POSTs each one to `/webhooks/postmark/inbound` as JSON.
+
+1. **Authenticate.** Postmark doesn't sign webhooks, so the webhook URL carries a username
+   and password (`https://USER:PASS@host/webhooks/postmark/inbound`), compared in constant
+   time. The endpoint is disabled until both are set in `.env`.
+2. **Skip re-deliveries.** Postmark retries until it gets a 200, so each email's
+   `MessageID` is stored and a repeat is answered without reprocessing.
+3. **Is it a receipt?** One LLM call sees the sender, subject, body, and attachment names,
+   and decides whether it's a receipt and whether the receipt is in an attachment or the
+   body (common for ride, delivery, and online-order emails). Promotions, newsletters, and
+   shipping updates are recorded and ignored.
+4. **Process.** Each usable attachment (PDF/image, not an inline logo) goes through the same
+   pipeline as an upload. A receipt in the body is converted from HTML to plain text and
+   stored as `.txt` — never as HTML, which could run scripts when viewed.
+5. **Fail safely.** If the "is it a receipt?" call fails, nothing is saved and the endpoint
+   returns 503, so Postmark retries later.
+
+Try it locally with the fake sample email. Set `POSTMARK_INBOUND_USERNAME` and
+`POSTMARK_INBOUND_PASSWORD` in `.env`, restart the API, and use the same values here:
+
+```bash
+curl -u "YOUR_USERNAME:YOUR_PASSWORD" \
+  -H "Content-Type: application/json" \
+  --data @backend/samples/postmark_receipt_email.json \
+  localhost:8000/webhooks/postmark/inbound
+```
+
 The LLM sits behind a small `LLMClient` interface (`app/llm/`), so Gemini can be swapped
 for another provider by adding one class.
 
@@ -153,10 +184,12 @@ receipt-agent/
 │   │   ├── anomalies.py       # Unusual-charge rules
 │   │   ├── vendors.py         # Vendor name normalization and matching
 │   │   ├── agent/             # Q&A agent loop + read-only database tools
+│   │   ├── email/             # Forwarded emails: receipt check, HTML→text
 │   │   ├── file_types.py      # Detect file type from content
 │   │   ├── storage.py         # File storage (local disk; S3 later)
 │   │   └── llm/               # Provider-agnostic LLM wrapper + Gemini implementation
 │   ├── alembic/        # Database migrations
+│   ├── samples/        # Fake example payloads
 │   └── tests/          # pytest suite
 ├── .github/workflows/  # CI
 ├── docker-compose.yml  # Local Postgres
@@ -177,7 +210,7 @@ _TODO: link._
 - [x] 2. Upload + extraction (images, PDFs) with validation
 - [x] 3. Categorization, duplicate detection, anomaly flags
 - [x] 4. Q&A agent with read-only database tools
-- [ ] 5. Email forwarding (Postmark inbound webhook)
+- [x] 5. Email forwarding (Postmark inbound webhook)
 - [ ] 6. Frontend: upload, list, flags, dashboard, chat
 - [ ] 7. User accounts + demo account
 - [ ] 8. Extraction evaluation script

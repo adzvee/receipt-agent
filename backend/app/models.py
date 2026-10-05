@@ -29,6 +29,11 @@ class ReceiptStatus(enum.StrEnum):
     FAILED = "failed"  # the LLM call failed; the file is saved and can be retried
 
 
+class ReceiptSource(enum.StrEnum):
+    UPLOAD = "upload"
+    EMAIL = "email"
+
+
 class Category(enum.StrEnum):
     GROCERIES = "groceries"
     DINING = "dining"
@@ -62,6 +67,14 @@ class Receipt(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Where it came from
+    source: Mapped[ReceiptSource] = mapped_column(
+        str_enum(ReceiptSource), default=ReceiptSource.UPLOAD, server_default="upload"
+    )
+    inbound_email_id: Mapped[int | None] = mapped_column(
+        ForeignKey("inbound_emails.id", ondelete="SET NULL"), index=True
+    )
 
     # The uploaded file
     original_filename: Mapped[str] = mapped_column(String(255))
@@ -145,3 +158,24 @@ class ReceiptFlag(Base):
     dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     receipt: Mapped[Receipt] = relationship(back_populates="flags", foreign_keys=[receipt_id])
+
+
+class InboundEmail(Base):
+    """An email forwarded to the app, and whether it turned out to be a receipt."""
+
+    __tablename__ = "inbound_emails"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Postmark's id for the email. Unique, so a webhook that's re-sent is processed once.
+    message_id: Mapped[str] = mapped_column(String(255), unique=True)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    from_email: Mapped[str] = mapped_column(String(320))
+    subject: Mapped[str] = mapped_column(Text)
+    # The "+tag" part of the address it was sent to; used to route emails to users later.
+    mailbox_hash: Mapped[str | None] = mapped_column(String(255))
+    is_receipt: Mapped[bool]
+    classification_reason: Mapped[str] = mapped_column(Text)
+
+    receipts: Mapped[list[Receipt]] = relationship(order_by="Receipt.id")
