@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -24,6 +24,16 @@ def get_db() -> Iterator[Session]:
         yield db
     finally:
         db.close()
+
+
+def make_read_only(db: Session) -> None:
+    """Make the rest of this session's transaction read-only, enforced by Postgres itself.
+
+    A safety net under the agent's tools: even if a tool had a bug that tried to write,
+    the database would refuse. Long-running queries are also cut off.
+    """
+    db.execute(text("SET TRANSACTION READ ONLY"))
+    db.execute(text("SET LOCAL statement_timeout = '5s'"))
 
 
 # Type alias for route parameters: `def route(db: DbSession): ...`

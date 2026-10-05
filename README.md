@@ -69,6 +69,7 @@ affect results. Each test also runs inside a transaction that is rolled back aft
 | `PATCH` | `/receipts/{id}` | Correct the category, e.g. `{"category": "groceries"}`. |
 | `POST` | `/receipts/{id}/flags/{flag_id}/dismiss` | Mark a flag as reviewed. |
 | `GET` | `/receipts/{id}/file` | The original uploaded file. |
+| `POST` | `/chat` | Ask a question, e.g. `{"question": "How much did I spend on food in September?"}`. Returns the answer and which tools were used. |
 
 Try it: `curl -F "file=@my-receipt.jpg" localhost:8000/receipts`, or use the interactive docs
 at `/docs`.
@@ -105,6 +106,30 @@ After extraction, each receipt is analyzed:
 Every problem, from a math mismatch to a likely duplicate, is a **flag** with a plain-English
 message. A receipt `needs_review` while it has any flag that hasn't been dismissed.
 
+### The Q&A agent
+
+`POST /chat` answers plain-English questions by running a small agent loop
+(`app/agent/agent.py`):
+
+1. The question (plus earlier turns, for follow-ups) goes to the LLM along with
+   descriptions of four tools: `spending_summary`, `list_receipts`, `get_receipt`, and
+   `search_line_items`.
+2. The LLM either answers, or asks for one or more tools with specific arguments.
+3. Our code validates the arguments, runs the tool, and sends the result back. Repeat,
+   up to 6 steps.
+
+**The LLM never writes SQL.** It can only choose a predefined tool and fill in typed
+arguments (dates, categories from a fixed list, a vendor name), which are validated before
+anything runs. Each tool is a fixed, parameterized SQLAlchemy `SELECT`
+(`app/agent/tools.py`). As a second line of defense, the chat request runs in a Postgres
+`READ ONLY` transaction with a 5-second statement timeout, so even a buggy tool couldn't
+modify data.
+
+Other guard rails: invalid tool calls are returned to the model as errors so it can
+correct itself; spending totals skip unreadable receipts and open duplicates; different
+currencies are never added together; and receipt text in tool results is treated as data,
+not instructions.
+
 The LLM sits behind a small `LLMClient` interface (`app/llm/`), so Gemini can be swapped
 for another provider by adding one class.
 
@@ -127,6 +152,7 @@ receipt-agent/
 │   │   ├── duplicates.py      # Same file / same purchase detection
 │   │   ├── anomalies.py       # Unusual-charge rules
 │   │   ├── vendors.py         # Vendor name normalization and matching
+│   │   ├── agent/             # Q&A agent loop + read-only database tools
 │   │   ├── file_types.py      # Detect file type from content
 │   │   ├── storage.py         # File storage (local disk; S3 later)
 │   │   └── llm/               # Provider-agnostic LLM wrapper + Gemini implementation
@@ -150,7 +176,7 @@ _TODO: link._
 - [x] 1. Project setup
 - [x] 2. Upload + extraction (images, PDFs) with validation
 - [x] 3. Categorization, duplicate detection, anomaly flags
-- [ ] 4. Q&A agent with read-only database tools
+- [x] 4. Q&A agent with read-only database tools
 - [ ] 5. Email forwarding (Postmark inbound webhook)
 - [ ] 6. Frontend: upload, list, flags, dashboard, chat
 - [ ] 7. User accounts + demo account

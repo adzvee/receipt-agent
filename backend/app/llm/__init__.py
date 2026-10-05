@@ -6,9 +6,31 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.config import get_settings
-from app.llm.base import Attachment, LLMClient, LLMError
+from app.llm.base import (
+    AssistantMessage,
+    Attachment,
+    ChatMessage,
+    LLMClient,
+    LLMError,
+    ToolCall,
+    ToolResultMessage,
+    ToolSpec,
+    UserMessage,
+)
 
-__all__ = ["Attachment", "LLMClient", "LLMDep", "LLMError", "get_llm"]
+__all__ = [
+    "AssistantMessage",
+    "Attachment",
+    "ChatMessage",
+    "LLMClient",
+    "LLMDep",
+    "LLMError",
+    "ToolCall",
+    "ToolResultMessage",
+    "ToolSpec",
+    "UserMessage",
+    "get_llm",
+]
 
 
 @lru_cache

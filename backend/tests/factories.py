@@ -9,7 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.categorization import CategoryDecision
 from app.extraction import ExtractedLineItem, ExtractedReceipt
-from app.models import Category, CategorySource, Receipt, ReceiptStatus
+from app.models import (
+    Category,
+    CategorySource,
+    FlagKind,
+    LineItem,
+    Receipt,
+    ReceiptFlag,
+    ReceiptStatus,
+)
 from app.vendors import normalize_vendor
 
 
@@ -46,14 +54,20 @@ def add_receipt(
     category: Category | None = Category.DINING,
     category_source: CategorySource | None = CategorySource.LLM,
     currency: str | None = "USD",
+    status: ReceiptStatus = ReceiptStatus.EXTRACTED,
+    line_items: list[tuple[str, str]] = (),
+    flags: list[tuple[FlagKind, str]] = (),
 ) -> Receipt:
-    """Insert an already-processed receipt directly, to set up history for a test."""
+    """Insert an already-processed receipt directly, to set up data for a test.
+
+    `line_items` are (description, amount) pairs; `flags` are (kind, code) pairs.
+    """
     receipt = Receipt(
         original_filename="seed.png",
         content_type="image/png",
         file_key=f"receipts/{uuid4().hex}.png",
         file_sha256=hashlib.sha256(uuid4().bytes).hexdigest(),
-        status=ReceiptStatus.EXTRACTED,
+        status=status,
         vendor=vendor,
         vendor_key=normalize_vendor(vendor),
         purchase_date=purchase_date,
@@ -61,6 +75,11 @@ def add_receipt(
         total=Decimal(total),
         category=category,
         category_source=category_source,
+        line_items=[
+            LineItem(position=i, description=description, amount=Decimal(amount))
+            for i, (description, amount) in enumerate(line_items)
+        ],
+        flags=[ReceiptFlag(kind=kind, code=code, message=code) for kind, code in flags],
     )
     db.add(receipt)
     db.flush()

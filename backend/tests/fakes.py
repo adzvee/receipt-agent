@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from app.llm import LLMError
+from app.llm import AssistantMessage, LLMError
 
 
 class FakeLLM:
@@ -15,6 +15,9 @@ class FakeLLM:
     def __init__(self, responses: dict[type[BaseModel], BaseModel | LLMError]):
         self.responses = responses
         self.calls: list[dict] = []
+        # For chat: replies returned in order, one per call.
+        self.chat_replies: list[AssistantMessage | LLMError] = []
+        self.chat_calls: list[dict] = []
 
     def generate_structured(self, *, prompt, response_model, attachments=None):
         self.calls.append(
@@ -27,6 +30,13 @@ class FakeLLM:
 
     def calls_for(self, response_model: type[BaseModel]) -> list[dict]:
         return [c for c in self.calls if c["response_model"] is response_model]
+
+    def chat(self, *, system, messages, tools):
+        self.chat_calls.append({"system": system, "messages": list(messages), "tools": tools})
+        reply = self.chat_replies.pop(0)
+        if isinstance(reply, LLMError):
+            raise reply
+        return reply
 
 
 # Minimal valid file headers; the bytes after them don't matter because the LLM is faked.

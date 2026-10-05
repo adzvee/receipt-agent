@@ -8,7 +8,17 @@ from google import genai
 from google.genai import errors, types
 from pydantic import ValidationError
 
-from app.llm.base import Attachment, LLMError, T
+from app.llm.base import (
+    AssistantMessage,
+    Attachment,
+    ChatMessage,
+    LLMError,
+    T,
+    ToolCall,
+    ToolResultMessage,
+    ToolSpec,
+    UserMessage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +75,34 @@ class GeminiClient:
         except ValidationError as exc:
             raise LLMError(f"Gemini returned output that doesn't match the schema: {exc}") from exc
 
+    def chat(
+        self, *, system: str, messages: list[ChatMessage], tools: list[ToolSpec]
+    ) -> AssistantMessage:
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            tools=[types.Tool(function_declarations=[_to_declaration(t) for t in tools])],
+            # We run tools ourselves (see app/agent), so the SDK must not.
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            temperature=0,
+        )
+        response = self._generate_with_retries(contents=_to_contents(messages), config=config)
+
+        content = response.candidates[0].content if response.candidates else None
+        if content is None:
+            raise LLMError("Gemini returned an empty response.")
+        parts = content.parts or []
+        text = "".join(p.text for p in parts if p.text and not p.thought) or None
+        tool_calls = [
+            ToolCall(
+                id=p.function_call.id,
+                name=p.function_call.name or "",
+                arguments=dict(p.function_call.args or {}),
+            )
+            for p in parts
+            if p.function_call
+        ]
+        return AssistantMessage(text=text, tool_calls=tool_calls, provider_data=content)
+
     def _generate_with_retries(
         self, *, contents: list, config: types.GenerateContentConfig
     ) -> types.GenerateContentResponse:
@@ -88,3 +126,40 @@ class GeminiClient:
                 )
                 self._sleep(delay)
         raise AssertionError("unreachable")
+
+
+def _to_declaration(tool: ToolSpec) -> types.FunctionDeclaration:
+    return types.FunctionDeclaration(
+        name=tool.name,
+        description=tool.description,
+        parameters_json_schema=tool.parameters.model_json_schema(),
+    )
+
+
+def _to_contents(messages: list[ChatMessage]) -> list[types.Content]:
+    """Convert our provider-neutral messages into Gemini's format."""
+    contents: list[types.Content] = []
+    for message in messages:
+        match message:
+            case UserMessage(text=text):
+                contents.append(types.Content(role="user", parts=[types.Part.from_text(text=text)]))
+            case AssistantMessage(provider_data=types.Content() as original):
+                contents.append(original)  # replay exactly, including any thought signatures
+            case AssistantMessage(text=text):
+                # e.g. earlier answers in the chat history sent back by the frontend
+                contents.append(
+                    types.Content(role="model", parts=[types.Part.from_text(text=text or "")])
+                )
+            case ToolResultMessage(call=call, result=result):
+                part = types.Part(
+                    function_response=types.FunctionResponse(
+                        id=call.id, name=call.name, response=result
+                    )
+                )
+                # All results for one model turn go back together in a single message.
+                previous = contents[-1] if contents else None
+                if previous and previous.parts and previous.parts[0].function_response:
+                    previous.parts.append(part)
+                else:
+                    contents.append(types.Content(role="user", parts=[part]))
+    return contents
