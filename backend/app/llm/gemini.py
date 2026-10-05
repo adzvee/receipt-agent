@@ -1,6 +1,7 @@
 """Gemini implementation of `LLMClient`, using Google's `google-genai` SDK."""
 
 import logging
+import re
 import time
 from collections.abc import Callable
 
@@ -26,6 +27,10 @@ logger = logging.getLogger(__name__)
 # Anything else, like a bad API key (401), will fail the same way every time.
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Google sometimes says how long to wait. Per-minute rate limits ask for under a minute,
+# which is worth waiting for. Daily quotas ask for hours, which no retry can fix.
+MAX_WAIT_SECONDS = 60.0
+
 
 class GeminiClient:
     def __init__(
@@ -34,12 +39,14 @@ class GeminiClient:
         model: str,
         max_attempts: int = 3,
         retry_delay_seconds: float = 2.0,
+        max_wait_seconds: float = MAX_WAIT_SECONDS,
         sleep: Callable[[float], None] = time.sleep,
     ):
         self._api_key = api_key
         self._model = model
         self._max_attempts = max_attempts
         self._retry_delay_seconds = retry_delay_seconds
+        self._max_wait_seconds = max_wait_seconds
         self._sleep = sleep  # injectable so tests don't actually wait
         self._client: genai.Client | None = None
 
@@ -106,7 +113,7 @@ class GeminiClient:
     def _generate_with_retries(
         self, *, contents: list, config: types.GenerateContentConfig
     ) -> types.GenerateContentResponse:
-        """Call Gemini, retrying temporary failures with exponential backoff (2s, 4s, ...)."""
+        """Call Gemini, retrying temporary failures (see `_retry_delay`)."""
         client = self._get_client()
         for attempt in range(1, self._max_attempts + 1):
             try:
@@ -114,9 +121,9 @@ class GeminiClient:
                     model=self._model, contents=contents, config=config
                 )
             except errors.APIError as exc:
-                if exc.code not in RETRYABLE_STATUS_CODES or attempt == self._max_attempts:
+                delay = self._retry_delay(exc, attempt)
+                if delay is None or attempt == self._max_attempts:
                     raise LLMError(f"Gemini request failed: {exc}") from exc
-                delay = self._retry_delay_seconds * 2 ** (attempt - 1)
                 logger.warning(
                     "Gemini returned %s (attempt %d/%d); retrying in %.0fs",
                     exc.code,
@@ -126,6 +133,31 @@ class GeminiClient:
                 )
                 self._sleep(delay)
         raise AssertionError("unreachable")
+
+    def _retry_delay(self, exc: errors.APIError, attempt: int) -> float | None:
+        """Seconds to wait before retrying, or None if retrying won't help."""
+        if exc.code not in RETRYABLE_STATUS_CODES:
+            return None
+        suggested = suggested_retry_delay(exc)
+        if suggested is None:
+            return self._retry_delay_seconds * 2 ** (attempt - 1)  # 2s, 4s, ...
+        if suggested > self._max_wait_seconds:
+            return None
+        return suggested + 1  # Google rounds the suggestion down
+
+
+def suggested_retry_delay(exc: errors.APIError) -> float | None:
+    """Google's "retry after N seconds" hint, from the RetryInfo entry in the error body.
+
+    e.g. {"error": {"details": [{"@type": ".../google.rpc.RetryInfo", "retryDelay": "29s"}]}}
+    """
+    body = exc.details if isinstance(exc.details, dict) else {}
+    for detail in body.get("error", {}).get("details", []):
+        if isinstance(detail, dict) and detail.get("@type", "").endswith("google.rpc.RetryInfo"):
+            match = re.fullmatch(r"(\d+(?:\.\d+)?)s", str(detail.get("retryDelay", "")))
+            if match:
+                return float(match.group(1))
+    return None
 
 
 def _to_declaration(tool: ToolSpec) -> types.FunctionDeclaration:

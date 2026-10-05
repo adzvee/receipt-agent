@@ -6,13 +6,20 @@ from google.genai import errors, types
 from app.agent.tools import TOOL_SPECS
 from app.extraction import ExtractedReceipt
 from app.llm import AssistantMessage, LLMError, ToolCall, ToolResultMessage, UserMessage
-from app.llm.gemini import GeminiClient, _to_contents
+from app.llm.gemini import GeminiClient, _to_contents, suggested_retry_delay
 from tests.factories import make_extracted_receipt
 
 
-def api_error(code: int) -> errors.APIError:
+def api_error(code: int, retry_delay: str | None = None) -> errors.APIError:
+    """A Gemini SDK error, optionally carrying Google's "retry after" hint."""
+    error = {"code": code, "message": "test", "status": "TEST"}
+    if retry_delay is not None:
+        error["details"] = [
+            {"@type": "type.googleapis.com/google.rpc.Help", "links": []},
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": retry_delay},
+        ]
     error_class = errors.ServerError if code >= 500 else errors.ClientError
-    return error_class(code, {"error": {"code": code, "message": "test", "status": "TEST"}})
+    return error_class(code, {"error": error})
 
 
 class FakeGenaiClient:
@@ -77,6 +84,32 @@ def test_gives_up_after_max_attempts():
         extract(client)
     assert fake.calls == 3
     assert sleeps == [2.0, 4.0]
+
+
+def test_short_suggested_wait_is_followed():
+    # e.g. a per-minute rate limit: "Please retry in 29.45s"
+    expected = make_extracted_receipt()
+    client, fake, sleeps = make_client([api_error(429, retry_delay="29s"), expected])
+
+    assert extract(client) == expected
+    assert sleeps == [30.0]  # Google rounds down, so we add a second
+
+
+def test_long_suggested_wait_is_not_retried():
+    # e.g. a daily quota: "Please retry in 21h36m"
+    client, fake, sleeps = make_client([api_error(429, retry_delay="77769s")])
+
+    with pytest.raises(LLMError, match="429"):
+        extract(client)
+    assert fake.calls == 1
+    assert sleeps == []
+
+
+def test_suggested_retry_delay_parsing():
+    assert suggested_retry_delay(api_error(429, retry_delay="29s")) == 29.0
+    assert suggested_retry_delay(api_error(429, retry_delay="1.5s")) == 1.5
+    assert suggested_retry_delay(api_error(429, retry_delay="soon")) is None
+    assert suggested_retry_delay(api_error(503)) is None
 
 
 def test_permanent_error_is_not_retried():
