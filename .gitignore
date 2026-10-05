@@ -1,0 +1,30 @@
+# Secrets — never commit real environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node (frontend, added in a later stage)
+node_modules/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Terraform (added in a later stage)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
