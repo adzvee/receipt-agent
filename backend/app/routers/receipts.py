@@ -53,8 +53,13 @@ def upload_receipt(file: UploadFile, db: DbSession, storage: StorageDep, llm: LL
 
 @router.get("", response_model=list[ReceiptOut])
 def list_receipts(db: DbSession, needs_review: bool | None = None) -> list[Receipt]:
-    """List receipts, newest first. `?needs_review=true` returns only flagged ones."""
-    query = select(Receipt).order_by(Receipt.created_at.desc(), Receipt.id.desc())
+    """List receipts, most recent purchase first. `?needs_review=true` for flagged ones only.
+
+    Receipts without a date (e.g. unreadable ones) come first, since they need attention.
+    """
+    query = select(Receipt).order_by(
+        Receipt.purchase_date.desc().nulls_first(), Receipt.created_at.desc(), Receipt.id.desc()
+    )
     if needs_review is not None:
         has_open_flag = Receipt.flags.any(ReceiptFlag.dismissed_at.is_(None))
         query = query.where(has_open_flag if needs_review else ~has_open_flag)

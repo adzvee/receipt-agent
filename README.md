@@ -24,7 +24,7 @@ _TODO (stage 10): diagram._
 
 ## Running locally
 
-Requirements: Python 3.11+, Docker.
+Requirements: Python 3.11+, Node 26+, Docker.
 
 ```bash
 # 1. Configure environment, then add your Gemini API key to .env
@@ -45,13 +45,21 @@ alembic upgrade head
 
 # 5. Run the API (docs at http://localhost:8000/docs)
 uvicorn app.main:app --reload
+
+# 6. In a second terminal, run the frontend (http://localhost:5173)
+cd frontend
+npm install
+npm run dev
 ```
+
+The Vite dev server forwards `/api/*` to the API on port 8000, so the browser only ever
+talks to one origin.
 
 ### Tests
 
 ```bash
-cd backend
-pytest
+cd backend && pytest          # API, agent, pipeline (mocked LLM)
+cd frontend && npm test       # components and helpers (mocked API)
 ```
 
 Tests mock the LLM, so no API key is needed. They need the Postgres container running, and
@@ -69,6 +77,7 @@ affect results. Each test also runs inside a transaction that is rolled back aft
 | `PATCH` | `/receipts/{id}` | Correct the category, e.g. `{"category": "groceries"}`. |
 | `POST` | `/receipts/{id}/flags/{flag_id}/dismiss` | Mark a flag as reviewed. |
 | `GET` | `/receipts/{id}/file` | The original uploaded file. |
+| `GET` | `/stats/spending` | Totals for the dashboard, e.g. `?group_by=category&start_date=2026-09-01`. |
 | `POST` | `/webhooks/postmark/inbound` | Receives forwarded emails from Postmark (HTTP Basic Auth). |
 | `POST` | `/chat` | Ask a question, e.g. `{"question": "How much did I spend on food in September?"}`. Returns the answer and which tools were used. |
 
@@ -131,6 +140,25 @@ correct itself; spending totals skip unreadable receipts and open duplicates; di
 currencies are never added together; and receipt text in tool results is treated as data,
 not instructions.
 
+### The frontend
+
+React + TypeScript (Vite), with React Router for pages, TanStack Query for fetching and
+caching API data, and Recharts for charts.
+
+- **Dashboard:** monthly spending for the last year, a period filter (this month, last
+  month, last 90 days, ...) that scopes the total and the category breakdown below it,
+  receipts needing review, and the chat box. The dashboard's totals come from the same
+  `spending_summary` function the agent uses, so the two always agree.
+- **Receipts:** drag-and-drop upload (several files at once) and the list, filterable to
+  receipts that need review.
+- **Receipt detail:** the original file next to the extracted fields and line items,
+  flags with a Dismiss button, and a category picker.
+
+Charts use one accent color checked for contrast and color-blind safety in light and dark
+mode, label values directly or in a subtitle (never clipped), show a tooltip on hover, and
+have a "Show as table" view so no number is only available by hovering. The chat renders
+the model's bold text and bullet lists as React elements, never as raw HTML.
+
 ### Forwarding receipts by email
 
 [Postmark](https://postmarkapp.com/developer/webhooks/inbound-webhook) receives emails sent
@@ -191,6 +219,12 @@ receipt-agent/
 │   ├── alembic/        # Database migrations
 │   ├── samples/        # Fake example payloads
 │   └── tests/          # pytest suite
+├── frontend/
+│   └── src/
+│       ├── api.ts      # Typed API client
+│       ├── format.ts   # Money/date formatting, period math
+│       ├── pages/      # Dashboard, Receipts, Receipt detail
+│       └── components/ # Charts, upload, chat, table, flags
 ├── .github/workflows/  # CI
 ├── docker-compose.yml  # Local Postgres
 └── .env.example        # Template for local secrets/config
@@ -211,7 +245,7 @@ _TODO: link._
 - [x] 3. Categorization, duplicate detection, anomaly flags
 - [x] 4. Q&A agent with read-only database tools
 - [x] 5. Email forwarding (Postmark inbound webhook)
-- [ ] 6. Frontend: upload, list, flags, dashboard, chat
+- [x] 6. Frontend: upload, list, flags, dashboard, chat
 - [ ] 7. User accounts + demo account
 - [ ] 8. Extraction evaluation script
 - [ ] 9. Deployment (Docker, Terraform, CD)

@@ -2,7 +2,7 @@ from app.config import get_settings
 from app.extraction import EXTRACTION_PROMPT, ExtractedReceipt
 from app.llm import LLMError
 from tests.factories import make_extracted_receipt
-from tests.fakes import PDF_BYTES, PNG_BYTES
+from tests.fakes import PDF_BYTES, PNG_BYTES, unique_png
 
 
 def upload(client, data: bytes, filename: str = "receipt.png"):
@@ -107,3 +107,16 @@ def test_list_and_get_receipts(client):
 def test_missing_receipt_returns_404(client):
     assert client.get("/receipts/999999").status_code == 404
     assert client.get("/receipts/999999/file").status_code == 404
+
+
+def test_list_is_ordered_by_purchase_date_with_undated_first(client, fake_llm):
+    fake_llm.responses[ExtractedReceipt] = make_extracted_receipt(purchase_date="2026-09-20")
+    september_20 = upload(client, unique_png(1)).json()["id"]
+    fake_llm.responses[ExtractedReceipt] = make_extracted_receipt(purchase_date="2026-09-01")
+    september_1 = upload(client, unique_png(2)).json()["id"]
+    fake_llm.responses[ExtractedReceipt] = LLMError("unreadable")
+    undated = upload(client, unique_png(3)).json()["id"]
+
+    ids = [r["id"] for r in client.get("/receipts").json()]
+
+    assert ids == [undated, september_20, september_1]

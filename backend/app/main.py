@@ -4,11 +4,12 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.db import DbSession
-from app.routers import chat, receipts, webhooks
+from app.routers import chat, receipts, stats, webhooks
 
 app = FastAPI(title="Receipt Agent", version="0.1.0")
 app.include_router(receipts.router)
 app.include_router(chat.router)
+app.include_router(stats.router)
 app.include_router(webhooks.router)
 
 
