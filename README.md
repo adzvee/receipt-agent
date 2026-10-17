@@ -68,8 +68,16 @@ affect results. Each test also runs inside a transaction that is rolled back aft
 
 ## API
 
+Everything except the auth routes, the webhook, and the health checks requires being logged
+in, and only ever sees the logged-in user's data.
+
 | Method | Path | What it does |
 |---|---|---|
+| `POST` | `/auth/register` | Create an account (`{"email", "password"}`, 8+ characters) and log in. |
+| `POST` | `/auth/login` | Log in. Sets an HttpOnly session cookie. |
+| `POST` | `/auth/logout` | Log out. |
+| `GET` | `/auth/me` | The logged-in user (and their email forwarding address). |
+| `POST` | `/auth/demo` | Create a private demo account with sample data, and log into it. |
 | `POST` | `/receipts` | Upload a receipt (JPEG, PNG, WebP, or PDF, max 10 MB). Extracts, validates, and saves it. |
 | `GET` | `/receipts` | List receipts, newest first. `?needs_review=true` for flagged ones only. |
 | `GET` | `/receipts/categories` | The list of spending categories. |
@@ -81,8 +89,13 @@ affect results. Each test also runs inside a transaction that is rolled back aft
 | `POST` | `/webhooks/postmark/inbound` | Receives forwarded emails from Postmark (HTTP Basic Auth). |
 | `POST` | `/chat` | Ask a question, e.g. `{"question": "How much did I spend on food in September?"}`. Returns the answer and which tools were used. |
 
-Try it: `curl -F "file=@my-receipt.jpg" localhost:8000/receipts`, or use the interactive docs
-at `/docs`.
+Try it with curl (or use the app, or the interactive docs at `/docs`):
+
+```bash
+curl -c cookies.txt -H "Content-Type: application/json" \
+  -d '{"email": "you@example.com", "password": "a long password"}' localhost:8000/auth/register
+curl -b cookies.txt -F "file=@my-receipt.jpg" localhost:8000/receipts
+```
 
 ### How extraction works
 
@@ -108,10 +121,13 @@ After extraction, each receipt is analyzed:
   normalized first, so `STARBUCKS #1234` and `Starbucks` count as the same vendor.
 - **Duplicates.** Flagged if the exact same file was uploaded before, or if another receipt
   has the same vendor, date, and total (e.g. a photo and the emailed PDF of one purchase).
-- **Unusual charges.** Flagged if the total is over 3x your median for that category (once
-  there are 5+ receipts to compare with), over 2.5x your median at that vendor (3+), or the
-  tip is over 30% of the subtotal. Medians are used so one big past purchase doesn't hide
-  new outliers. Only receipts in the same currency are compared.
+- **Unusual charges.** Flagged if the total is over 2x the *high end* (90th percentile) of
+  your past purchases in that category (once there are 10+ to compare with), over 2.5x your
+  *median* at that vendor (5+), or the tip is over 30% of the subtotal. A flagged charge must
+  also be at least $25 above the usual amount, so a $12 café order isn't "3x a coffee".
+  Categories use the high end because they mix very different purchases (a $4 coffee and a
+  $45 dinner are both dining); a vendor's receipts are similar, so the median works there.
+  Only receipts in the same currency are compared.
 
 Every problem, from a math mismatch to a likely duplicate, is a **flag** with a plain-English
 message. A receipt `needs_review` while it has any flag that hasn't been dismissed.
@@ -139,6 +155,27 @@ Other guard rails: invalid tool calls are returned to the model as errors so it 
 correct itself; spending totals skip unreadable receipts and open duplicates; different
 currencies are never added together; and receipt text in tool results is treated as data,
 not instructions.
+
+### Accounts and the demo
+
+- **Passwords** are hashed with Argon2; only the hash is stored. Login errors are identical
+  (and take the same time) whether or not the email exists.
+- **Sessions** are JWTs signed with `JWT_SECRET` (required, 32+ characters, outside
+  development) and kept in an **HttpOnly, SameSite=Lax cookie**: page JavaScript can't read
+  it, so a script-injection bug couldn't steal it, and other sites can't make requests with
+  it. API clients can send the same token as a `Bearer` header.
+- **Every query is scoped to the logged-in user**: receipt routes, dashboard stats, all
+  four agent tools, and the analysis steps (vendor history, duplicate checks, and anomaly
+  history never look at other people's receipts). Someone else's receipt returns the same
+  404 as a missing one, so ids can't be probed. Tests cover each route and tool.
+- **Email forwarding** is routed by a private token in the address
+  (`inbox+TOKEN@inbound.postmarkapp.com`); mail for unknown tokens is ignored before any
+  LLM call.
+- **"Try the demo"** creates a fresh private account per visitor with ~two months of
+  invented receipts, so visitors can upload and edit without affecting each other. Every
+  demo receipt goes through the real validation, duplicate, and anomaly checks (four are
+  built to trip one each). Demo accounts are deleted after 24 hours and are capped at 25
+  AI-backed requests, so a public demo can't exhaust the LLM quota.
 
 ### The frontend
 
@@ -212,6 +249,8 @@ receipt-agent/
 │   │   ├── anomalies.py       # Unusual-charge rules
 │   │   ├── vendors.py         # Vendor name normalization and matching
 │   │   ├── agent/             # Q&A agent loop + read-only database tools
+│   │   ├── auth.py            # Password hashing, JWT sessions, current user
+│   │   ├── demo.py            # "Try demo" accounts and their fake receipts
 │   │   ├── email/             # Forwarded emails: receipt check, HTML→text
 │   │   ├── file_types.py      # Detect file type from content
 │   │   ├── storage.py         # File storage (local disk; S3 later)
@@ -246,7 +285,7 @@ _TODO: link._
 - [x] 4. Q&A agent with read-only database tools
 - [x] 5. Email forwarding (Postmark inbound webhook)
 - [x] 6. Frontend: upload, list, flags, dashboard, chat
-- [ ] 7. User accounts + demo account
+- [x] 7. User accounts + demo account
 - [ ] 8. Extraction evaluation script
 - [ ] 9. Deployment (Docker, Terraform, CD)
 - [ ] 10. Final README

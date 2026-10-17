@@ -33,6 +33,7 @@ def process_receipt_file(
     db: Session,
     storage: FileStorage,
     llm: LLMClient,
+    user_id: int,
     filename: str,
     data: bytes,
     mime_type: str,
@@ -43,6 +44,7 @@ def process_receipt_file(
     storage.save(file_key, data, mime_type)
 
     receipt = Receipt(
+        user_id=user_id,
         source=source,
         inbound_email_id=inbound_email_id,
         original_filename=filename,

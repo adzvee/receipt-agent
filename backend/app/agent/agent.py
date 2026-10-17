@@ -61,6 +61,7 @@ def answer_question(
     *,
     llm: LLMClient,
     db: Session,
+    user_id: int,
     question: str,
     history: list[UserMessage | AssistantMessage],
     today: date,
@@ -76,6 +77,6 @@ def answer_question(
 
         for call in reply.tool_calls:
             tool_calls.append(call)
-            messages.append(ToolResultMessage(call=call, result=run_tool(db, call)))
+            messages.append(ToolResultMessage(call=call, result=run_tool(db, call, user_id)))
 
     return AgentAnswer(TOO_MANY_STEPS_ANSWER, tool_calls)

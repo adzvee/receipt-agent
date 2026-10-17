@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { askQuestion, type ChatTurn, type ToolCall } from '../api'
 import { describeToolCall } from '../format'
@@ -15,17 +15,20 @@ interface Message extends ChatTurn {
 }
 
 export function ChatPanel() {
+  const queryClient = useQueryClient()
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
 
   const ask = useMutation({
     mutationFn: ({ question, history }: { question: string; history: ChatTurn[] }) =>
       askQuestion(question, history),
-    onSuccess: (response) =>
+    onSuccess: (response) => {
       setMessages((current) => [
         ...current,
         { role: 'assistant', content: response.answer, toolCalls: response.tool_calls },
-      ]),
+      ])
+      queryClient.invalidateQueries({ queryKey: ['me'] }) // demo request count
+    },
   })
 
   function send(question: string) {

@@ -73,6 +73,13 @@ export interface ChatResponse {
   tool_calls: ToolCall[]
 }
 
+export interface User {
+  email: string
+  is_demo: boolean
+  forwarding_address: string | null
+  demo_requests_left: number | null
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -85,10 +92,13 @@ export class ApiError extends Error {
 const BASE = '/api'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // The login cookie is sent automatically (same origin) and is HttpOnly: this code
+  // never sees or stores the token.
   const response = await fetch(BASE + path, init)
   if (!response.ok) {
     throw new ApiError(response.status, await errorMessage(response))
   }
+  if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 
@@ -107,6 +117,36 @@ async function errorMessage(response: Response): Promise<string> {
 function jsonBody(method: string, body: unknown): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 }
+
+// --- Accounts ---
+
+/** The logged-in user, or null if nobody is logged in. */
+export async function getMe(): Promise<User | null> {
+  try {
+    return await request<User>('/auth/me')
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null
+    throw error
+  }
+}
+
+export function login(email: string, password: string): Promise<User> {
+  return request('/auth/login', jsonBody('POST', { email, password }))
+}
+
+export function register(email: string, password: string): Promise<User> {
+  return request('/auth/register', jsonBody('POST', { email, password }))
+}
+
+export function logout(): Promise<void> {
+  return request('/auth/logout', { method: 'POST' })
+}
+
+export function startDemo(): Promise<User> {
+  return request('/auth/demo', { method: 'POST' })
+}
+
+// --- Receipts ---
 
 export function listReceipts(options: { needsReview?: boolean } = {}): Promise<Receipt[]> {
   const query = options.needsReview ? '?needs_review=true' : ''

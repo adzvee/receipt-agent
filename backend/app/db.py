@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import create_engine, text
+from sqlalchemy import MetaData, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -14,7 +14,16 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 class Base(DeclarativeBase):
-    pass
+    # Explicit constraint names (matching Postgres's own defaults), so migrations can
+    # always refer to a constraint by name, e.g. to drop it in a downgrade.
+    metadata = MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "%(table_name)s_%(column_0_name)s_key",
+            "fk": "%(table_name)s_%(column_0_name)s_fkey",
+            "pk": "%(table_name)s_pkey",
+        }
+    )
 
 
 def get_db() -> Iterator[Session]:

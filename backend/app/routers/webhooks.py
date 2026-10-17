@@ -46,7 +46,7 @@ def require_postmark_credentials(
 
 
 class InboundEmailResponse(BaseModel):
-    status: Literal["processed", "duplicate"]
+    status: Literal["processed", "duplicate", "ignored"]
     is_receipt: bool
     reason: str
     receipt_ids: list[int]
@@ -80,6 +80,11 @@ def postmark_inbound(
             status.HTTP_503_SERVICE_UNAVAILABLE, "Temporarily unable to process email."
         ) from exc
 
+    if result.email is None:
+        # Still a 200: an unknown address won't start working if Postmark retries.
+        return InboundEmailResponse(
+            status=result.status, is_receipt=False, reason="Unknown recipient.", receipt_ids=[]
+        )
     return InboundEmailResponse(
         status=result.status,
         is_receipt=result.email.is_receipt,

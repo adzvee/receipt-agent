@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.email.html_text import html_to_text
 from app.file_types import sniff_mime_type
 from app.llm import LLMClient
-from app.models import InboundEmail, Receipt, ReceiptSource
+from app.models import InboundEmail, Receipt, ReceiptSource, User
 from app.receipt_service import process_receipt_file
 from app.storage import FileStorage
 
@@ -41,6 +41,7 @@ class PostmarkInboundEmail(BaseModel):
     message_id: str = Field(alias="MessageID", min_length=1)
     from_email: str = Field(alias="From")
     subject: str = Field("", alias="Subject")
+    # The part after "+" in the address it was sent to: identifies the user.
     mailbox_hash: str = Field("", alias="MailboxHash")
     text_body: str = Field("", alias="TextBody")
     html_body: str = Field("", alias="HtmlBody")
@@ -127,9 +128,17 @@ def body_as_file(email: PostmarkInboundEmail) -> ReceiptFile | None:
 
 @dataclass(frozen=True)
 class InboundResult:
-    status: Literal["processed", "duplicate"]
-    email: InboundEmail
+    status: Literal["processed", "duplicate", "ignored"]
+    email: InboundEmail | None  # None when ignored
     receipts: list[Receipt]
+
+
+def find_recipient(db: Session, mailbox_hash: str) -> User | None:
+    """The user whose private forwarding token is in the address. Demo accounts can't receive."""
+    if not mailbox_hash:
+        return None
+    user = db.scalars(select(User).where(User.inbound_token == mailbox_hash)).first()
+    return user if user is not None and not user.is_demo else None
 
 
 def handle_inbound_email(
@@ -145,6 +154,12 @@ def handle_inbound_email(
     Raises LLMError if classification fails, before anything is saved, so the caller can
     ask Postmark to retry later.
     """
+    # Checked before any LLM call, so mail to unknown addresses costs nothing.
+    user = find_recipient(db, email.mailbox_hash)
+    if user is None:
+        logger.info("Ignoring email %s: no user for that address", email.message_id)
+        return InboundResult("ignored", None, [])
+
     existing = db.scalars(
         select(InboundEmail).where(InboundEmail.message_id == email.message_id)
     ).first()
@@ -164,9 +179,9 @@ def handle_inbound_email(
 
     record = InboundEmail(
         message_id=email.message_id,
+        user_id=user.id,
         from_email=email.from_email,
         subject=email.subject,
-        mailbox_hash=email.mailbox_hash or None,
         is_receipt=decision.is_receipt,
         classification_reason=decision.reason,
     )
@@ -185,6 +200,7 @@ def handle_inbound_email(
                     db=db,
                     storage=storage,
                     llm=llm,
+                    user_id=user.id,
                     filename=file.filename,
                     data=file.data,
                     mime_type=file.mime_type,

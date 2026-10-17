@@ -78,6 +78,7 @@ def _previous_category_for_vendor(db: Session, receipt: Receipt) -> Receipt | No
     query = (
         select(Receipt)
         .where(
+            Receipt.user_id == receipt.user_id,  # never learn from other people's receipts
             Receipt.vendor_key == receipt.vendor_key,
             Receipt.id != receipt.id,
             Receipt.category.is_not(None),

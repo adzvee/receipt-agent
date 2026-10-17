@@ -18,6 +18,8 @@ class FileStorage(Protocol):
 
     def read(self, key: str) -> bytes: ...
 
+    def delete(self, key: str) -> None: ...
+
 
 class LocalFileStorage:
     def __init__(self, root: Path):
@@ -36,6 +38,9 @@ class LocalFileStorage:
 
     def read(self, key: str) -> bytes:
         return self._path(key).read_bytes()
+
+    def delete(self, key: str) -> None:
+        self._path(key).unlink(missing_ok=True)
 
 
 @lru_cache

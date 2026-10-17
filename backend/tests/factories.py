@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from app.auth import hash_password, new_inbound_token
 from app.categorization import CategoryDecision
 from app.extraction import ExtractedLineItem, ExtractedReceipt
 from app.models import (
@@ -17,8 +18,33 @@ from app.models import (
     Receipt,
     ReceiptFlag,
     ReceiptStatus,
+    User,
 )
 from app.vendors import normalize_vendor
+
+DEFAULT_EMAIL = "test-user@example.com"
+DEFAULT_MAILBOX = "test-mailbox"  # the default user's forwarding token
+PASSWORD = "correct horse battery"
+
+
+def make_user(
+    db: Session, email: str, *, is_demo: bool = False, inbound_token: str | None = None
+) -> User:
+    user = User(
+        email=email,
+        password_hash=hash_password(PASSWORD),
+        inbound_token=inbound_token or new_inbound_token(),
+        is_demo=is_demo,
+    )
+    db.add(user)
+    db.flush()
+    return user
+
+
+def default_user(db: Session) -> User:
+    """The user most tests act as (the `client` fixture is logged in as them)."""
+    existing = db.query(User).filter_by(email=DEFAULT_EMAIL).first()
+    return existing or make_user(db, DEFAULT_EMAIL, inbound_token=DEFAULT_MAILBOX)
 
 
 def make_extracted_receipt(**overrides) -> ExtractedReceipt:
@@ -48,6 +74,7 @@ def make_category_decision(category: Category = Category.DINING) -> CategoryDeci
 def add_receipt(
     db: Session,
     *,
+    user: User | None = None,
     vendor: str = "Corner Cafe",
     total: str = "8.37",
     purchase_date: date = date(2026, 9, 1),
@@ -61,8 +88,10 @@ def add_receipt(
     """Insert an already-processed receipt directly, to set up data for a test.
 
     `line_items` are (description, amount) pairs; `flags` are (kind, code) pairs.
+    Belongs to the default test user unless `user` is given.
     """
     receipt = Receipt(
+        user_id=(user or default_user(db)).id,
         original_filename="seed.png",
         content_type="image/png",
         file_key=f"receipts/{uuid4().hex}.png",

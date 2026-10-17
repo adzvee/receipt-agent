@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.email.inbound import EmailClassification
 from app.extraction import ExtractedReceipt
 from app.llm import LLMError
+from tests.factories import DEFAULT_MAILBOX
 from tests.fakes import PDF_BYTES, PNG_BYTES
 
 SAMPLE = Path(__file__).resolve().parents[1] / "samples" / "postmark_receipt_email.json"
@@ -32,6 +33,7 @@ def classify_as(fake_llm, is_receipt: bool, location: str = "none") -> None:
 def make_email(**overrides) -> dict:
     email = {
         "MessageID": "msg-1",
+        "MailboxHash": DEFAULT_MAILBOX,  # addressed to the default test user
         "From": "you@example.com",
         "Subject": "Fwd: Your order",
         "TextBody": "Thanks for your order.",
@@ -161,7 +163,7 @@ def test_inline_images_and_unsupported_files_are_skipped(client, fake_llm):
 
 def test_receipt_in_html_body_is_extracted_from_plain_text(client, fake_llm):
     classify_as(fake_llm, is_receipt=True, location="body")
-    email = json.loads(SAMPLE.read_text())
+    email = json.loads(SAMPLE.read_text()) | {"MailboxHash": DEFAULT_MAILBOX}
 
     body = post(client, email).json()
 
@@ -216,3 +218,55 @@ def test_classifier_outage_returns_503_so_postmark_retries(client, fake_llm):
 
 def test_malformed_payload_is_rejected(client):
     assert post(client, {"Subject": "no message id"}).status_code == 422
+
+
+# --- Routing to users ---
+
+
+def test_email_to_unknown_address_is_ignored_without_calling_the_llm(client, fake_llm):
+    response = post(client, make_email(MailboxHash="no-such-user"))
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+    assert fake_llm.calls == []
+
+
+def test_email_without_a_token_is_ignored(client, fake_llm):
+    assert post(client, make_email(MailboxHash="")).json()["status"] == "ignored"
+    assert fake_llm.calls == []
+
+
+def test_email_goes_to_the_user_whose_token_it_has(client, other_client, other_user, fake_llm):
+    classify_as(fake_llm, is_receipt=True, location="attachments")
+
+    body = post(
+        client,
+        make_email(
+            MailboxHash=other_user.inbound_token,
+            Attachments=[attachment("receipt.pdf", PDF_BYTES)],
+        ),
+    ).json()
+
+    [receipt_id] = body["receipt_ids"]
+    assert other_client.get(f"/receipts/{receipt_id}").status_code == 200
+    assert client.get(f"/receipts/{receipt_id}").status_code == 404
+
+
+def test_demo_accounts_cannot_receive_email(anon_client, db_session, fake_llm):
+    from app.models import User
+
+    anon_client.post("/auth/demo")
+    demo = db_session.query(User).filter_by(is_demo=True).one()
+
+    response = post(anon_client, make_email(MailboxHash=demo.inbound_token))
+
+    assert response.json()["status"] == "ignored"
+    assert fake_llm.calls == []
+
+
+def test_forwarding_address_uses_the_users_token(client, user, monkeypatch):
+    monkeypatch.setattr(get_settings(), "postmark_inbound_address", "abc123@inbound.example.com")
+
+    me = client.get("/auth/me").json()
+
+    assert me["forwarding_address"] == f"abc123+{user.inbound_token}@inbound.example.com"

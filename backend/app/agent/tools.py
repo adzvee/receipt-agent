@@ -2,7 +2,8 @@
 
 The LLM never writes SQL. It can only pick one of these tools and fill in its arguments,
 which are validated against a Pydantic model before any query runs. Each tool is a fixed,
-parameterized SQLAlchemy SELECT.
+parameterized SQLAlchemy SELECT, always limited to the current user's receipts: the user id
+comes from the login session, never from the model.
 """
 
 from collections.abc import Callable
@@ -107,7 +108,7 @@ def _receipt_summary(receipt: Receipt) -> dict[str, Any]:
 # --- The tools ---
 
 
-def spending_summary(db: Session, args: SpendingSummaryArgs) -> dict[str, Any]:
+def spending_summary(db: Session, args: SpendingSummaryArgs, user_id: int) -> dict[str, Any]:
     # For each grouping: (what to display, what to group by).
     month = func.to_char(Receipt.purchase_date, "YYYY-MM")
     group_label, group_key = {
@@ -120,7 +121,9 @@ def spending_summary(db: Session, args: SpendingSummaryArgs) -> dict[str, Any]:
 
     total = func.sum(Receipt.total)
     columns = [Receipt.currency, total.label("total"), func.count(Receipt.id).label("count")]
-    query = select(*columns).where(_is_counted()).group_by(Receipt.currency)
+    query = (
+        select(*columns).where(Receipt.user_id == user_id, _is_counted()).group_by(Receipt.currency)
+    )
     if group_label is not None:
         query = query.add_columns(group_label.label("group")).group_by(group_key)
     query = _apply_filters(query, args).order_by(total.desc()).limit(50)
@@ -134,13 +137,13 @@ def spending_summary(db: Session, args: SpendingSummaryArgs) -> dict[str, Any]:
     return {"groups": groups, "note": COUNTED_NOTE}
 
 
-def list_receipts(db: Session, args: ListReceiptsArgs) -> dict[str, Any]:
+def list_receipts(db: Session, args: ListReceiptsArgs, user_id: int) -> dict[str, Any]:
     order = {
         "newest": (Receipt.purchase_date.desc().nulls_last(), Receipt.id.desc()),
         "oldest": (Receipt.purchase_date.asc().nulls_last(), Receipt.id.asc()),
         "largest": (Receipt.total.desc().nulls_last(), Receipt.id.desc()),
     }[args.sort]
-    query = _apply_filters(select(Receipt), args).order_by(*order)
+    query = _apply_filters(select(Receipt).where(Receipt.user_id == user_id), args).order_by(*order)
     if args.min_total is not None:
         query = query.where(Receipt.total >= args.min_total)
     if args.needs_review is not None:
@@ -154,9 +157,9 @@ def list_receipts(db: Session, args: ListReceiptsArgs) -> dict[str, Any]:
     }
 
 
-def get_receipt(db: Session, args: GetReceiptArgs) -> dict[str, Any]:
+def get_receipt(db: Session, args: GetReceiptArgs, user_id: int) -> dict[str, Any]:
     receipt = db.get(Receipt, args.receipt_id)
-    if receipt is None:
+    if receipt is None or receipt.user_id != user_id:  # someone else's looks the same as missing
         return {"error": f"There is no receipt #{args.receipt_id}."}
     return {
         **_receipt_summary(receipt),
@@ -176,9 +179,11 @@ def get_receipt(db: Session, args: GetReceiptArgs) -> dict[str, Any]:
     }
 
 
-def search_line_items(db: Session, args: SearchLineItemsArgs) -> dict[str, Any]:
+def search_line_items(db: Session, args: SearchLineItemsArgs, user_id: int) -> dict[str, Any]:
     def matching(query: Select) -> Select:
-        query = query.join(Receipt).where(_is_counted(), _contains(LineItem.description, args.text))
+        query = query.join(Receipt).where(
+            Receipt.user_id == user_id, _is_counted(), _contains(LineItem.description, args.text)
+        )
         return _apply_date_range(query, args.start_date, args.end_date)
 
     rows = db.execute(
@@ -218,7 +223,7 @@ def search_line_items(db: Session, args: SearchLineItemsArgs) -> dict[str, Any]:
 @dataclass(frozen=True)
 class Tool:
     spec: ToolSpec
-    run: Callable[[Session, Any], dict[str, Any]]
+    run: Callable[[Session, Any, int], dict[str, Any]]  # (db, args, user_id)
 
 
 TOOLS: dict[str, Tool] = {
@@ -264,7 +269,7 @@ TOOLS: dict[str, Tool] = {
 TOOL_SPECS = [tool.spec for tool in TOOLS.values()]
 
 
-def run_tool(db: Session, call: ToolCall) -> dict[str, Any]:
+def run_tool(db: Session, call: ToolCall, user_id: int) -> dict[str, Any]:
     """Validate the model's arguments and run the tool. Mistakes go back to the model."""
     tool = TOOLS.get(call.name)
     if tool is None:
@@ -273,4 +278,4 @@ def run_tool(db: Session, call: ToolCall) -> dict[str, Any]:
         args = tool.spec.parameters.model_validate(call.arguments)
     except ValidationError as exc:
         return {"error": f"Invalid arguments for {call.name}: {exc}"}
-    return tool.run(db, args)
+    return tool.run(db, args, user_id)

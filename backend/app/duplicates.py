@@ -13,7 +13,11 @@ def find_duplicate_flags(db: Session, receipt: Receipt) -> list[ReceiptFlag]:
     "Same purchase" (same vendor, date, and total) catches e.g. a photo of a receipt
     and the emailed PDF of the same receipt.
     """
-    earlier = select(Receipt).where(Receipt.id != receipt.id).order_by(Receipt.id)
+    earlier = (
+        select(Receipt)
+        .where(Receipt.user_id == receipt.user_id, Receipt.id != receipt.id)
+        .order_by(Receipt.id)
+    )
 
     same_file = db.scalars(earlier.where(Receipt.file_sha256 == receipt.file_sha256)).first()
     if same_file is not None:

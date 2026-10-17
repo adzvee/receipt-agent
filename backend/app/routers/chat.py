@@ -8,8 +8,10 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.agent.agent import answer_question
+from app.auth import CurrentUser
 from app.db import DbSession, make_read_only
 from app.llm import AssistantMessage, LLMDep, LLMError, UserMessage
+from app.quota import use_llm_request
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +40,22 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, db: DbSession, llm: LLMDep) -> ChatResponse:
+def chat(request: ChatRequest, user: CurrentUser, db: DbSession, llm: LLMDep) -> ChatResponse:
     history = [
         UserMessage(turn.content) if turn.role == "user" else AssistantMessage(text=turn.content)
         for turn in request.history
     ]
+    use_llm_request(db, user)
+    db.commit()  # save the count before the transaction becomes read-only
     make_read_only(db)
     try:
         result = answer_question(
-            llm=llm, db=db, question=request.question, history=history, today=date.today()
+            llm=llm,
+            db=db,
+            user_id=user.id,
+            question=request.question,
+            history=history,
+            today=date.today(),
         )
     except LLMError as exc:
         logger.exception("Chat failed: the LLM call didn't succeed")

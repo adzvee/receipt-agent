@@ -8,11 +8,11 @@ from app.agent.tools import run_tool
 from app.db import make_read_only
 from app.llm import ToolCall
 from app.models import Category, FlagKind, ReceiptStatus
-from tests.factories import add_receipt
+from tests.factories import add_receipt, default_user
 
 
 def call(db, name: str, **arguments) -> dict:
-    return run_tool(db, ToolCall(id=None, name=name, arguments=arguments))
+    return run_tool(db, ToolCall(id=None, name=name, arguments=arguments), default_user(db).id)
 
 
 @pytest.fixture

@@ -133,7 +133,7 @@ def test_same_vendor_different_day_is_not_a_duplicate(client, fake_llm):
 
 
 def test_unusually_large_charge_is_flagged(client, fake_llm, db_session):
-    for total in ["9.00", "11.00", "10.00", "12.00", "8.00"]:
+    for total in ["9.00", "11.00", "10.00", "12.00", "8.00"] * 2:
         add_receipt(db_session, vendor="Some Other Cafe", total=total)
     fake_llm.responses[ExtractedReceipt] = make_extracted_receipt(
         line_items=[], subtotal=None, tax=None, total=95.00
@@ -143,11 +143,11 @@ def test_unusually_large_charge_is_flagged(client, fake_llm, db_session):
 
     assert flag_codes(body) == ["high_for_category"]
     assert body["flags"][0]["kind"] == "anomaly"
-    assert "your typical dining purchase (10.00)" in body["flags"][0]["message"]
+    assert "the high end of your usual dining purchases (12.00)" in body["flags"][0]["message"]
 
 
 def test_history_in_another_currency_is_ignored(client, fake_llm, db_session):
-    for total in ["9.00", "11.00", "10.00", "12.00", "8.00"]:
+    for total in ["9.00", "11.00", "10.00", "12.00", "8.00"] * 2:
         add_receipt(db_session, vendor="Some Other Cafe", total=total, currency="EUR")
     fake_llm.responses[ExtractedReceipt] = make_extracted_receipt(
         line_items=[], subtotal=None, tax=None, total=95.00

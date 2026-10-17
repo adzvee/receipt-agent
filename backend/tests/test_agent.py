@@ -4,7 +4,7 @@ from datetime import date
 
 from app.agent.agent import MAX_STEPS, TOO_MANY_STEPS_ANSWER, answer_question
 from app.llm import AssistantMessage, ToolCall, ToolResultMessage, UserMessage
-from tests.factories import add_receipt
+from tests.factories import add_receipt, default_user
 
 TODAY = date(2026, 10, 4)
 
@@ -15,7 +15,12 @@ def tool_call(name: str, **arguments) -> AssistantMessage:
 
 def ask(fake_llm, db, question: str, history=None):
     return answer_question(
-        llm=fake_llm, db=db, question=question, history=history or [], today=TODAY
+        llm=fake_llm,
+        db=db,
+        user_id=default_user(db).id,
+        question=question,
+        history=history or [],
+        today=TODAY,
     )
 
 

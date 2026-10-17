@@ -40,6 +40,7 @@ export function UploadDropzone() {
     }
     await queryClient.invalidateQueries({ queryKey: ['receipts'] })
     await queryClient.invalidateQueries({ queryKey: ['spending'] })
+    await queryClient.invalidateQueries({ queryKey: ['me'] }) // demo request count
   }
 
   function onDrop(event: DragEvent) {

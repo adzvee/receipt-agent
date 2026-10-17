@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import URL, Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
+from app.auth import COOKIE_NAME, create_access_token
 from app.categorization import CategoryDecision
 from app.config import get_settings
 from app.db import get_db
@@ -15,8 +16,9 @@ from app.email.inbound import EmailClassification
 from app.extraction import ExtractedReceipt
 from app.llm import get_llm
 from app.main import app
+from app.models import User
 from app.storage import LocalFileStorage, get_storage
-from tests.factories import make_category_decision, make_extracted_receipt
+from tests.factories import default_user, make_category_decision, make_extracted_receipt, make_user
 from tests.fakes import FakeLLM
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -93,9 +95,38 @@ def storage(tmp_path) -> LocalFileStorage:
 
 
 @pytest.fixture
-def client(db_session, fake_llm, storage) -> Iterator[TestClient]:
+def user(db_session) -> User:
+    return default_user(db_session)
+
+
+@pytest.fixture
+def other_user(db_session) -> User:
+    return make_user(db_session, "someone-else@example.com")
+
+
+@pytest.fixture
+def anon_client(db_session, fake_llm, storage) -> Iterator[TestClient]:
+    """A client that isn't logged in."""
     app.dependency_overrides[get_db] = lambda: db_session
     app.dependency_overrides[get_llm] = lambda: fake_llm
     app.dependency_overrides[get_storage] = lambda: storage
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+def logged_in_client(user: User) -> TestClient:
+    client = TestClient(app)
+    client.cookies.set(COOKIE_NAME, create_access_token(user.id))
+    return client
+
+
+@pytest.fixture
+def client(anon_client, user) -> TestClient:
+    """A client logged in as the default test user."""
+    return logged_in_client(user)
+
+
+@pytest.fixture
+def other_client(anon_client, other_user) -> TestClient:
+    """A client logged in as a different user, for checking data isolation."""
+    return logged_in_client(other_user)

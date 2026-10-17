@@ -1,13 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi } from 'vitest'
-import type { Receipt } from '../api'
+import type { Receipt, User } from '../api'
+import { createQueryClient } from '../queryClient'
 
 /** Render with the same providers as the app, at a given URL. */
 export function renderWithProviders(ui: ReactElement, { route = '/', path = '*' } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = createQueryClient({ retry: false })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[route]}>
@@ -73,6 +74,16 @@ export function makeReceipt(overrides: Partial<Receipt> = {}): Receipt {
     category_reason: "It's a café.",
     flags: [],
     needs_review: false,
+    ...overrides,
+  }
+}
+
+export function makeUser(overrides: Partial<User> = {}): User {
+  return {
+    email: 'you@example.com',
+    is_demo: false,
+    forwarding_address: null,
+    demo_requests_left: null,
     ...overrides,
   }
 }
