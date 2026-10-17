@@ -77,7 +77,7 @@ export function ReceiptDetailPage() {
           <ul>
             {openFlags.map((flag) => (
               <li key={flag.id}>
-                <FlagBadge kind={flag.kind} />
+                <FlagBadge flag={flag} />
                 <span>{flag.message}</span>
                 {flag.related_receipt_id && (
                   <Link to={`/receipts/${flag.related_receipt_id}`}>

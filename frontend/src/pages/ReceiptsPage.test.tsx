@@ -73,3 +73,35 @@ it('shows why an upload was rejected', async () => {
 
   expect(await screen.findByText(/Unsupported file type/)).toBeInTheDocument()
 })
+
+it('labels tip flags as an unusual tip, other anomalies as an unusual charge', async () => {
+  const anomaly = (id: number, code: string) => ({
+    id,
+    kind: 'anomaly' as const,
+    code,
+    message: code,
+    related_receipt_id: null,
+    dismissed_at: null,
+  })
+  mockApi({
+    'GET /receipts': [
+      makeReceipt({ id: 1, vendor: 'QuickRide', flags: [anomaly(1, 'high_tip')] }),
+      makeReceipt({ id: 2, vendor: 'Lakeside Grill', flags: [anomaly(2, 'high_for_category')] }),
+      makeReceipt({
+        id: 3,
+        vendor: 'Noodle House',
+        flags: [anomaly(3, 'high_tip'), anomaly(4, 'high_for_vendor')],
+      }),
+    ],
+  })
+  renderWithProviders(<ReceiptsPage />)
+
+  const row = async (vendor: string) =>
+    (await screen.findByRole('link', { name: vendor })).closest('tr')!
+  expect(await row('QuickRide')).toHaveTextContent('Unusual tip')
+  expect(await row('QuickRide')).not.toHaveTextContent('Unusual charge')
+  expect(await row('Lakeside Grill')).toHaveTextContent('Unusual charge')
+  // A receipt with both kinds of anomaly shows both badges.
+  expect(await row('Noodle House')).toHaveTextContent('Unusual tip')
+  expect(await row('Noodle House')).toHaveTextContent('Unusual charge')
+})

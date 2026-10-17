@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { getSpending, listReceipts, type SpendingGroup } from '../api'
 import { ChatPanel } from '../components/ChatPanel'
 import { CategoryChart, MonthlyChart, type ChartRow } from '../components/charts'
-import { FlagBadge } from '../components/FlagBadge'
+import { OpenFlagBadges } from '../components/FlagBadge'
 import {
   categoryLabel,
   formatDate,
@@ -164,12 +164,8 @@ export function DashboardPage() {
                   {' '}
                   · {formatDate(receipt.purchase_date)} · {formatMoney(receipt.total, receipt.currency)}
                 </span>
-                <div className="badge-row">
-                  {[...new Set(receipt.flags.filter((f) => !f.dismissed_at).map((f) => f.kind))].map(
-                    (kind) => (
-                      <FlagBadge key={kind} kind={kind} />
-                    ),
-                  )}
+                <div>
+                  <OpenFlagBadges flags={receipt.flags} />
                 </div>
               </li>
             ))}

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Receipt } from '../api'
 import { categoryLabel, formatDate, formatMoney } from '../format'
-import { FlagBadge } from './FlagBadge'
+import { OpenFlagBadges } from './FlagBadge'
 
 export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
   return (
@@ -18,8 +18,7 @@ export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
         </thead>
         <tbody>
           {receipts.map((receipt) => {
-            const openFlags = receipt.flags.filter((flag) => !flag.dismissed_at)
-            const kinds = [...new Set(openFlags.map((flag) => flag.kind))]
+            const hasOpenFlags = receipt.flags.some((flag) => !flag.dismissed_at)
             return (
               <tr key={receipt.id}>
                 <td className="nowrap">{formatDate(receipt.purchase_date)}</td>
@@ -32,12 +31,8 @@ export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
                 <td>{categoryLabel(receipt.category)}</td>
                 <td className="num">{formatMoney(receipt.total, receipt.currency)}</td>
                 <td>
-                  {kinds.length ? (
-                    <span className="badge-row">
-                      {kinds.map((kind) => (
-                        <FlagBadge key={kind} kind={kind} />
-                      ))}
-                    </span>
+                  {hasOpenFlags ? (
+                    <OpenFlagBadges flags={receipt.flags} />
                   ) : (
                     <span className="muted">—</span>
                   )}
