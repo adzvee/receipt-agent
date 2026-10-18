@@ -14,7 +14,8 @@ interface Message extends ChatTurn {
   toolCalls?: ToolCall[]
 }
 
-export function ChatPanel() {
+/** `showSuggestions` is off for empty accounts, where every suggestion's answer is "$0". */
+export function ChatPanel({ showSuggestions = true }: { showSuggestions?: boolean }) {
   const queryClient = useQueryClient()
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
@@ -51,7 +52,7 @@ export function ChatPanel() {
       <h2>Ask about your spending</h2>
 
       <div className="chat-log" aria-live="polite">
-        {messages.length === 0 && (
+        {showSuggestions && messages.length === 0 && (
           <div className="suggestions">
             {SUGGESTIONS.map((suggestion) => (
               <button key={suggestion} type="button" onClick={() => send(suggestion)}>

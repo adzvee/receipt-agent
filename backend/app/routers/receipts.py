@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from app.quota import use_llm_request
 from app.receipt_service import process_receipt_file
 from app.schemas import ReceiptOut, ReceiptUpdate
 from app.storage import StorageDep
+from app.thumbnails import make_thumbnail
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -62,7 +63,10 @@ def upload_receipt(
 
 @router.get("", response_model=list[ReceiptOut])
 def list_receipts(
-    user: CurrentUser, db: DbSession, needs_review: bool | None = None
+    user: CurrentUser,
+    db: DbSession,
+    needs_review: bool | None = None,
+    limit: int | None = Query(None, ge=1, le=500),
 ) -> list[Receipt]:
     """List receipts, most recent purchase first. `?needs_review=true` for flagged ones only.
 
@@ -80,7 +84,7 @@ def list_receipts(
     if needs_review is not None:
         has_open_flag = Receipt.flags.any(ReceiptFlag.dismissed_at.is_(None))
         query = query.where(has_open_flag if needs_review else ~has_open_flag)
-    return list(db.scalars(query))
+    return list(db.scalars(query.limit(limit)))
 
 
 @router.get("/categories", response_model=list[Category])
@@ -129,6 +133,26 @@ def get_receipt_file(
         media_type=receipt.content_type,
         # Stop browsers from guessing a different type (e.g. treating text as HTML).
         headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get("/{receipt_id}/thumbnail")
+def get_receipt_thumbnail(
+    receipt_id: int, user: CurrentUser, db: DbSession, storage: StorageDep
+) -> Response:
+    """A small JPEG preview. Only photos have one; PDFs and emails get 404."""
+    receipt = _get_or_404(db, user, receipt_id)
+    if not receipt.content_type.startswith("image/"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This receipt has no thumbnail.")
+    try:
+        thumbnail = make_thumbnail(storage.read(receipt.file_key))
+    except OSError as exc:  # includes Pillow's "cannot identify image file"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This receipt has no thumbnail.") from exc
+    # A receipt's file never changes, so the browser can keep the thumbnail for a day.
+    return Response(
+        content=thumbnail,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=86400"},
     )
 
 

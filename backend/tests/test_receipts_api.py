@@ -1,3 +1,7 @@
+from io import BytesIO
+
+from PIL import Image
+
 from app.config import get_settings
 from app.extraction import EXTRACTION_PROMPT, ExtractedReceipt
 from app.llm import LLMError
@@ -102,6 +106,46 @@ def test_list_and_get_receipts(client):
     assert [r["id"] for r in listed][:2] == [second_id, first_id]
 
     assert client.get(f"/receipts/{first_id}").json()["id"] == first_id
+
+
+def test_list_can_be_limited(client):
+    for n in range(3):
+        upload(client, unique_png(n))
+
+    assert len(client.get("/receipts?limit=1").json()) == 1
+    assert client.get("/receipts?limit=0").status_code == 422
+
+
+def photo_bytes(size: tuple[int, int], mode: str = "RGB") -> bytes:
+    out = BytesIO()
+    Image.new(mode, size, "red").save(out, "PNG")
+    return out.getvalue()
+
+
+def test_photo_thumbnail_is_a_small_jpeg(client):
+    receipt_id = upload(client, photo_bytes((1200, 1600))).json()["id"]
+
+    response = client.get(f"/receipts/{receipt_id}/thumbnail")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert "max-age" in response.headers["cache-control"]
+    with Image.open(BytesIO(response.content)) as thumbnail:
+        assert thumbnail.size == (96, 128)  # fits the box, keeping the 3:4 shape
+
+
+def test_transparent_photo_thumbnail_works(client):
+    receipt_id = upload(client, photo_bytes((300, 300), "RGBA")).json()["id"]
+
+    assert client.get(f"/receipts/{receipt_id}/thumbnail").status_code == 200
+
+
+def test_pdfs_and_unreadable_images_have_no_thumbnail(client):
+    pdf_id = upload(client, PDF_BYTES, "receipt.pdf").json()["id"]
+    broken_id = upload(client, PNG_BYTES).json()["id"]  # a PNG header with no image in it
+
+    assert client.get(f"/receipts/{pdf_id}/thumbnail").status_code == 404
+    assert client.get(f"/receipts/{broken_id}/thumbnail").status_code == 404
 
 
 def test_missing_receipt_returns_404(client):

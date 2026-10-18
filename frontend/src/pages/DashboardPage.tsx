@@ -5,6 +5,8 @@ import { getSpending, listReceipts, type SpendingGroup } from '../api'
 import { ChatPanel } from '../components/ChatPanel'
 import { CategoryChart, MonthlyChart, type ChartRow } from '../components/charts'
 import { OpenFlagBadges } from '../components/FlagBadge'
+import { ForwardingAddress } from '../components/ForwardingAddress'
+import { UploadDropzone } from '../components/UploadDropzone'
 import {
   categoryLabel,
   formatDate,
@@ -37,6 +39,43 @@ function OtherCurrencies({ groups, shown }: { groups: SpendingGroup[]; shown: st
 }
 
 export function DashboardPage() {
+  // One receipt is enough to know whether the account is empty.
+  const anyReceipt = useQuery({
+    queryKey: ['receipts', { limit: 1 }],
+    queryFn: () => listReceipts({ limit: 1 }),
+  })
+
+  if (anyReceipt.isPending) return <p className="muted page">Loading…</p>
+  if (anyReceipt.isError) return <p className="error-text page">{anyReceipt.error.message}</p>
+  return anyReceipt.data.length === 0 ? <Welcome /> : <Overview />
+}
+
+/** For accounts with no receipts yet: just the two ways to add one. */
+function Welcome() {
+  return (
+    <div className="dashboard">
+      <div className="dashboard-main">
+        <h1>Welcome to Receipt Agent</h1>
+        <section className="card welcome">
+          <h2>Add your first receipt</h2>
+          <p>
+            Upload a photo, screenshot, or PDF. The vendor, date, items, and totals are read
+            automatically and filed into a spending category.
+          </p>
+          <UploadDropzone prominent />
+        </section>
+        <section className="card">
+          <ForwardingAddress />
+        </section>
+      </div>
+      <aside className="dashboard-side">
+        <ChatPanel showSuggestions={false} />
+      </aside>
+    </div>
+  )
+}
+
+function Overview() {
   const [period, setPeriod] = useState<Period>('this_month')
   const [today] = useState(() => new Date()) // fixed for the page's lifetime
   const months = recentMonths(today, MONTHS_SHOWN)
@@ -71,11 +110,15 @@ export function DashboardPage() {
   const categoryGroups = byCategory.data?.groups ?? []
   const currency = primaryCurrency(categoryGroups)
   const shownGroups = inCurrency(categoryGroups, currency)
-  const categoryRows: ChartRow[] = shownGroups.map((group) => ({
-    label: categoryLabel(group.category === '(none)' ? null : (group.category ?? null)),
-    value: Number(group.total),
-    detail: `${group.receipt_count} receipts`,
-  }))
+  const categoryRows: ChartRow[] = shownGroups.map((group) => {
+    const category = group.category === '(none)' ? null : (group.category ?? null)
+    return {
+      label: categoryLabel(category),
+      value: Number(group.total),
+      detail: `${group.receipt_count} receipts`,
+      category,
+    }
+  })
   const periodTotal = shownGroups.reduce((sum, group) => sum + Number(group.total), 0)
   const receiptCount = categoryGroups.reduce((sum, group) => sum + group.receipt_count, 0)
 
@@ -89,9 +132,10 @@ export function DashboardPage() {
 
         {!loading && !hasAnySpending && (
           <section className="card empty-state">
-            <h2>No spending yet</h2>
+            <h2>No recent spending</h2>
             <p>
-              <Link to="/receipts">Upload a receipt</Link> or forward one by email to get started.
+              Nothing was counted in the last 12 months. Receipts that couldn't be read and
+              possible duplicates aren't included, so <Link to="/receipts">check your receipts</Link>.
             </p>
           </section>
         )}

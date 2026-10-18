@@ -148,8 +148,13 @@ export function startDemo(): Promise<User> {
 
 // --- Receipts ---
 
-export function listReceipts(options: { needsReview?: boolean } = {}): Promise<Receipt[]> {
-  const query = options.needsReview ? '?needs_review=true' : ''
+export function listReceipts(
+  options: { needsReview?: boolean; limit?: number } = {},
+): Promise<Receipt[]> {
+  const params = new URLSearchParams()
+  if (options.needsReview) params.set('needs_review', 'true')
+  if (options.limit) params.set('limit', String(options.limit))
+  const query = params.size ? `?${params}` : ''
   return request(`/receipts${query}`)
 }
 
@@ -190,4 +195,9 @@ export function askQuestion(question: string, history: ChatTurn[]): Promise<Chat
 
 export function receiptFileUrl(id: number): string {
   return `${BASE}/receipts/${id}/file`
+}
+
+/** A small JPEG preview; only photo receipts have one. */
+export function receiptThumbnailUrl(id: number): string {
+  return `${BASE}/receipts/${id}/thumbnail`
 }

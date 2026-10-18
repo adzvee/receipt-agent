@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { listReceipts } from '../api'
-import { useCurrentUser } from '../auth'
+import { ForwardingAddress } from '../components/ForwardingAddress'
 import { ReceiptTable } from '../components/ReceiptTable'
 import { UploadDropzone } from '../components/UploadDropzone'
 
@@ -9,7 +9,6 @@ export function ReceiptsPage() {
   // The filter lives in the URL (?review=1) so the view can be linked to and survives reload.
   const [searchParams, setSearchParams] = useSearchParams()
   const needsReview = searchParams.get('review') === '1'
-  const forwardingAddress = useCurrentUser().data?.forwarding_address
 
   const receipts = useQuery({
     queryKey: ['receipts', { needsReview }],
@@ -20,11 +19,7 @@ export function ReceiptsPage() {
     <div className="page">
       <h1>Receipts</h1>
       <UploadDropzone />
-      {forwardingAddress && (
-        <p className="muted forwarding">
-          Or forward receipt emails to <strong className="selectable">{forwardingAddress}</strong>
-        </p>
-      )}
+      <ForwardingAddress />
 
       <div className="filter-row" role="group" aria-label="Filter receipts">
         <button type="button" aria-pressed={!needsReview} onClick={() => setSearchParams({})}>

@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { Receipt } from '../api'
-import { categoryLabel, formatDate, formatMoney } from '../format'
+import { formatDate, formatMoney } from '../format'
+import { CategoryTag } from './CategoryIcon'
 import { OpenFlagBadges } from './FlagBadge'
+import { ReceiptThumbnail } from './ReceiptThumbnail'
 
 export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
   return (
@@ -11,7 +13,7 @@ export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
           <tr>
             <th>Date</th>
             <th>Vendor</th>
-            <th>Category</th>
+            <th className="wide-only">Category</th>
             <th className="num">Total</th>
             <th>Review</th>
           </tr>
@@ -23,12 +25,23 @@ export function ReceiptTable({ receipts }: { receipts: Receipt[] }) {
               <tr key={receipt.id}>
                 <td className="nowrap">{formatDate(receipt.purchase_date)}</td>
                 <td>
-                  <Link to={`/receipts/${receipt.id}`}>
-                    {receipt.vendor ?? receipt.original_filename}
-                  </Link>
-                  {receipt.source === 'email' && <span className="muted"> · via email</span>}
+                  <div className="vendor-cell">
+                    <ReceiptThumbnail receipt={receipt} />
+                    <span>
+                      <Link to={`/receipts/${receipt.id}`}>
+                        {receipt.vendor ?? receipt.original_filename}
+                      </Link>
+                      {receipt.source === 'email' && <span className="muted"> · via email</span>}
+                      {/* On narrow screens the category moves here, to leave room for the total. */}
+                      <span className="narrow-only">
+                        <CategoryTag category={receipt.category} />
+                      </span>
+                    </span>
+                  </div>
                 </td>
-                <td>{categoryLabel(receipt.category)}</td>
+                <td className="wide-only">
+                  <CategoryTag category={receipt.category} />
+                </td>
                 <td className="num">{formatMoney(receipt.total, receipt.currency)}</td>
                 <td>
                   {hasOpenFlags ? (

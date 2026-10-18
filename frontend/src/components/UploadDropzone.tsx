@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Camera, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { uploadReceipt } from '../api'
@@ -15,7 +16,8 @@ interface UploadState {
   error?: string
 }
 
-export function UploadDropzone() {
+/** `prominent` shows a large "Upload receipt" button instead of a text link (empty accounts). */
+export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
@@ -56,6 +58,17 @@ export function UploadDropzone() {
     event.target.value = '' // allow choosing the same file again
   }
 
+  // Touch screens only: desktop browsers ignore `capture` and would show a file picker.
+  const cameraButton = (
+    <button
+      type="button"
+      className={`touch-only${prominent ? ' large' : ' primary'}`}
+      onClick={() => cameraRef.current?.click()}
+    >
+      <Camera aria-hidden="true" size={18} /> Take photo
+    </button>
+  )
+
   return (
     <section>
       <div
@@ -67,17 +80,36 @@ export function UploadDropzone() {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <p>
-          <strong>Drop receipts here</strong> or{' '}
-          <button type="button" className="link-button" onClick={() => inputRef.current?.click()}>
-            choose files
-          </button>
-        </p>
-        <p className="muted">Photos, screenshots, or PDFs, up to 10 MB each.</p>
-        {/* Touch screens only: desktop browsers ignore `capture` and would show a file picker. */}
-        <button type="button" className="primary touch-only" onClick={() => cameraRef.current?.click()}>
-          Take photo
-        </button>
+        {prominent ? (
+          <>
+            <button
+              type="button"
+              className="primary large"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload aria-hidden="true" size={18} /> Upload receipt
+            </button>
+            {cameraButton}
+            <p className="muted">
+              Or drop files here. Photos, screenshots, or PDFs, up to 10 MB each.
+            </p>
+          </>
+        ) : (
+          <>
+            <p>
+              <strong>Drop receipts here</strong> or{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => inputRef.current?.click()}
+              >
+                choose files
+              </button>
+            </p>
+            <p className="muted">Photos, screenshots, or PDFs, up to 10 MB each.</p>
+            {cameraButton}
+          </>
+        )}
         <input
           ref={inputRef}
           type="file"

@@ -2,11 +2,15 @@
 
 import type { SpendingGroup, ToolCall } from './api'
 
+// Used when a receipt didn't show a currency, and for totals of nothing (an empty account).
+const DEFAULT_CURRENCY = 'USD'
+
 export function formatMoney(amount: string | number | null, currency: string | null): string {
   if (amount === null) return '—'
-  const value = Number(amount)
-  if (!currency) return value.toLocaleString('en-US', { minimumFractionDigits: 2 })
-  return value.toLocaleString('en-US', { style: 'currency', currency })
+  return Number(amount).toLocaleString('en-US', {
+    style: 'currency',
+    currency: currency ?? DEFAULT_CURRENCY,
+  })
 }
 
 /** Short money for axis ticks: $1.2K instead of $1,200.00. */
@@ -14,7 +18,8 @@ export function formatMoneyCompact(value: number, currency: string | null): stri
   return value.toLocaleString('en-US', {
     notation: 'compact',
     maximumFractionDigits: 1,
-    ...(currency ? { style: 'currency', currency } : {}),
+    style: 'currency',
+    currency: currency ?? DEFAULT_CURRENCY,
   })
 }
 

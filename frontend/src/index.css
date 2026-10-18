@@ -1,5 +1,5 @@
-/* Design tokens. Chart colors come from a palette validated for color-blind safety and
-   contrast in both modes; components refer to roles, never raw hex. */
+/* Design tokens. Chart colors are validated for contrast in both modes; components refer
+   to roles, never raw hex. */
 :root {
   color-scheme: light;
   --page: #f9f9f7;
@@ -21,6 +21,20 @@
   --serious-ink: #8a3412;
   --critical-bg: #f9e0e0;
   --critical-ink: #8f2424;
+  /* Category colors (see components/categories.tsx). */
+  --cat-groceries: #2f8a3e;
+  --cat-dining: #c2560c;
+  --cat-transportation: #2a78d6;
+  --cat-travel: #0b7f99;
+  --cat-shopping: #c0347a;
+  --cat-utilities: #9a6b00;
+  --cat-health: #c93a3a;
+  --cat-entertainment: #8a4fd1;
+  --cat-subscriptions: #4f5bd5;
+  --cat-education: #1f8a70;
+  --cat-office: #8a6340;
+  --cat-other: #6b7280;
+  --cat-uncategorized: #8a8983;
   --radius: 10px;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;
@@ -51,6 +65,19 @@
     --serious-ink: #f2a98a;
     --critical-bg: #3d1c1c;
     --critical-ink: #f4a3a3;
+    --cat-groceries: #5cc46a;
+    --cat-dining: #f0883e;
+    --cat-transportation: #5a9ff0;
+    --cat-travel: #3fb8d4;
+    --cat-shopping: #f06aa8;
+    --cat-utilities: #e0b030;
+    --cat-health: #f07070;
+    --cat-entertainment: #b48af0;
+    --cat-subscriptions: #8a94f0;
+    --cat-education: #4fcca8;
+    --cat-office: #c49a6e;
+    --cat-other: #9aa1ad;
+    --cat-uncategorized: #77766f;
   }
 }
 
@@ -100,6 +127,23 @@ button.primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
+}
+
+/* Keep the accent on hover; the generic hover wash would put white text on near-white. */
+button[type='submit']:hover:not(:disabled),
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+button svg {
+  vertical-align: -0.2em;
+}
+
+button.large {
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
 }
 
 input,
@@ -408,6 +452,18 @@ main {
     display: inline-block;
     margin-top: 0.75rem;
   }
+
+  .welcome .dropzone .touch-only {
+    margin: 0 0 0 0.5rem;
+  }
+}
+
+.welcome .dropzone {
+  padding: 2rem 1.5rem;
+}
+
+.welcome .dropzone .muted {
+  margin-top: 0.6rem;
 }
 
 .link-button {
@@ -593,7 +649,85 @@ iframe.preview {
 }
 
 .forwarding {
-  margin: 0.5rem 0 0;
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.card .forwarding {
+  margin: 0;
+}
+
+.forwarding h2 {
+  font-size: 1rem;
+  margin: 0 0 0.2rem;
+}
+
+.forwarding p {
+  margin: 0 0 0.4rem;
+}
+
+.forwarding-icon {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--text-secondary);
+}
+
+.forwarding-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.category-tag svg {
+  flex: none;
+}
+
+.vendor-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.thumbnail {
+  flex: none;
+  width: 36px;
+  height: 48px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  background: var(--page);
+}
+
+.narrow-only {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .wide-only {
+    display: none;
+  }
+
+  .narrow-only {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+}
+
+.thumbnail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
 }
 
 .selectable {

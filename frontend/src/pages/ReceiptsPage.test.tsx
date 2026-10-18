@@ -122,3 +122,26 @@ it('labels tip flags as an unusual tip, other anomalies as an unusual charge', a
   expect(await row('Noodle House')).toHaveTextContent('Unusual tip')
   expect(await row('Noodle House')).toHaveTextContent('Unusual charge')
 })
+
+it('shows a thumbnail for photos, an icon otherwise, and each category with its icon', async () => {
+  mockApi({
+    'GET /receipts': [
+      makeReceipt({ id: 1, vendor: 'Corner Cafe', content_type: 'image/jpeg' }),
+      makeReceipt({ id: 2, vendor: 'FiberNet', content_type: 'application/pdf', category: 'utilities' }),
+      makeReceipt({ id: 3, vendor: 'Mystery', category: null }),
+    ],
+  })
+  const { container } = renderWithProviders(<ReceiptsPage />)
+
+  await screen.findByText('FiberNet')
+  const thumbnails = container.querySelectorAll('img.thumbnail')
+  expect([...thumbnails].map((img) => img.getAttribute('src'))).toEqual([
+    '/api/receipts/1/thumbnail',
+    '/api/receipts/3/thumbnail',
+  ])
+  expect(container.querySelectorAll('.thumbnail-icon')).toHaveLength(1) // the PDF
+  for (const label of ['Dining', 'Utilities', 'Uncategorized']) {
+    const tag = screen.getAllByText(label)[0].closest('.category-tag')
+    expect(tag?.querySelector('svg')).not.toBeNull()
+  }
+})

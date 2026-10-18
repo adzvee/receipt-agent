@@ -30,6 +30,7 @@ def test_someone_elses_receipt_looks_like_it_does_not_exist(
     for response in [
         client.get(f"/receipts/{theirs.id}"),
         client.get(f"/receipts/{theirs.id}/file"),
+        client.get(f"/receipts/{theirs.id}/thumbnail"),
         client.patch(f"/receipts/{theirs.id}", json={"category": "office"}),
         client.post(f"/receipts/{theirs.id}/flags/{flag_id}/dismiss"),
     ]:

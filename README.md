@@ -79,12 +79,13 @@ in, and only ever sees the logged-in user's data.
 | `GET` | `/auth/me` | The logged-in user (and their email forwarding address). |
 | `POST` | `/auth/demo` | Create a private demo account with sample data, and log into it. |
 | `POST` | `/receipts` | Upload a receipt (JPEG, PNG, WebP, or PDF, max 10 MB). Extracts, validates, and saves it. |
-| `GET` | `/receipts` | List receipts, newest first. `?needs_review=true` for flagged ones only. |
+| `GET` | `/receipts` | List receipts, newest first. `?needs_review=true` for flagged ones only; `?limit=N` for the first N. |
 | `GET` | `/receipts/categories` | The list of spending categories. |
 | `GET` | `/receipts/{id}` | One receipt with its line items, category, and flags. |
 | `PATCH` | `/receipts/{id}` | Correct the category, e.g. `{"category": "groceries"}`. |
 | `POST` | `/receipts/{id}/flags/{flag_id}/dismiss` | Mark a flag as reviewed. |
 | `GET` | `/receipts/{id}/file` | The original uploaded file. |
+| `GET` | `/receipts/{id}/thumbnail` | A small JPEG preview of a photo receipt (404 for PDFs and emails). |
 | `GET` | `/stats/spending` | Totals for the dashboard, e.g. `?group_by=category&start_date=2026-09-01`. |
 | `POST` | `/webhooks/postmark/inbound` | Receives forwarded emails from Postmark (HTTP Basic Auth). |
 | `POST` | `/chat` | Ask a question, e.g. `{"question": "How much did I spend on food in September?"}`. Returns the answer and which tools were used. |
@@ -142,7 +143,13 @@ message. A receipt `needs_review` while it has any flag that hasn't been dismiss
    `search_line_items`.
 2. The LLM either answers, or asks for one or more tools with specific arguments.
 3. Our code validates the arguments, runs the tool, and sends the result back. Repeat,
-   up to 6 steps.
+   up to 6 steps. On the last step the model isn't allowed to call tools and is told to
+   answer from what it has found.
+
+An empty result says so explicitly ("this account has no receipts yet, this is a complete
+answer"). Without that, the model treated `[]` as a possible mistake and kept re-checking
+with broader filters until it ran out of steps. Now "How much did I spend on food last
+month?" on an empty account is one tool call and "$0, no receipts in that period".
 
 **The LLM never writes SQL.** It can only choose a predefined tool and fill in typed
 arguments (dates, categories from a fixed list, a vendor name), which are validated before
@@ -185,15 +192,19 @@ caching API data, and Recharts for charts.
 - **Dashboard:** monthly spending for the last year, a period filter (this month, last
   month, last 90 days, ...) that scopes the total and the category breakdown below it,
   receipts needing review, and the chat box. The dashboard's totals come from the same
-  `spending_summary` function the agent uses, so the two always agree.
-- **Receipts:** drag-and-drop upload (several files at once) and the list, filterable to
+  `spending_summary` function the agent uses, so the two always agree. A new account sees
+  a single welcome state instead: an Upload receipt button and its forwarding address.
+- **Receipts:** drag-and-drop upload (several files at once, or "Take photo" on phones),
+  the user's email forwarding address, and the list with photo thumbnails, filterable to
   receipts that need review.
 - **Receipt detail:** the original file next to the extracted fields and line items,
   flags with a Dismiss button, and a category picker.
 
-Charts use one accent color checked for contrast and color-blind safety in light and dark
-mode, label values directly or in a subtitle (never clipped), show a tooltip on hover, and
-have a "Show as table" view so no number is only available by hovering. The chat renders
+Each category has one color and icon, used in both the category chart and the receipts
+list; every color is checked for at least 3:1 contrast in light and dark mode, and the
+category name is always shown too, so color is never the only cue. Charts label values
+directly or in a subtitle (never clipped), show a tooltip on hover, and have a "Show as
+table" view so no number is only available by hovering. The chat renders
 the model's bold text and bullet lists as React elements, never as raw HTML.
 
 ### Forwarding receipts by email

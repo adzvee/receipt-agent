@@ -3,6 +3,7 @@ import {
   describeToolCall,
   formatDate,
   formatMoney,
+  formatMoneyCompact,
   formatMonth,
   periodRange,
   primaryCurrency,
@@ -17,9 +18,14 @@ describe('formatMoney', () => {
     expect(formatMoney('20', 'EUR')).toBe('€20.00')
   })
 
-  it('handles missing values and currencies', () => {
+  it('shows a dollar sign when the currency is unknown, including on zero totals', () => {
+    expect(formatMoney('8.37', null)).toBe('$8.37')
+    expect(formatMoney(0, null)).toBe('$0.00')
+    expect(formatMoneyCompact(1200, null)).toBe('$1.2K')
+  })
+
+  it('shows a dash for a missing amount', () => {
     expect(formatMoney(null, 'USD')).toBe('—')
-    expect(formatMoney('8.37', null)).toBe('8.37')
   })
 })
 

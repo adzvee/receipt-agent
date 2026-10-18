@@ -3,22 +3,29 @@ import {
   BarChart,
   CartesianGrid,
   LabelList,
+  Rectangle,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  type BarShapeProps,
+  type YAxisTickContentProps,
 } from 'recharts'
 import { formatMoney, formatMoneyCompact } from '../format'
+import { categoryColor } from '../categories'
+import { CategoryIcon, CategoryTag } from './CategoryIcon'
 
-// Chart styling follows one spec: a single accent color (validated for contrast in light
-// and dark mode), bars at most 24px thick with 4px rounded ends, hairline gridlines,
-// selective value labels, a hover tooltip on every bar, and a table view so no value is
-// only reachable by hovering. Colors come from CSS variables in index.css.
+// Chart styling follows one spec: bars at most 24px thick with 4px rounded ends, hairline
+// gridlines, selective value labels, a hover tooltip on every bar, and a table view so no
+// value is only reachable by hovering. The monthly chart uses the single accent color;
+// category bars use each category's own color and icon (see categories.tsx). Colors come
+// from CSS variables in index.css, validated for contrast in light and dark mode.
 
 export interface ChartRow {
   label: string
   value: number
   detail?: string // e.g. "3 receipts", shown in the tooltip
+  category?: string | null // set on category rows, for their color and icon
 }
 
 interface TooltipProps {
@@ -41,9 +48,33 @@ function ChartTooltip({ active, payload, currency }: TooltipProps) {
 
 const axisTick = { fill: 'var(--text-muted)', fontSize: 12 }
 
+const CATEGORY_AXIS_WIDTH = 140
+
+/** Category axis label: the category's icon, then its name, left-aligned. */
+function CategoryTick({ x, y, payload, rows }: YAxisTickContentProps & { rows: ChartRow[] }) {
+  const category = rows[payload.index]?.category ?? null
+  const left = Number(x) - CATEGORY_AXIS_WIDTH + 4
+  const middle = Number(y)
+  return (
+    <g>
+      <CategoryIcon category={category} x={left} y={middle - 8} size={16} />
+      <text x={left + 24} y={middle} dy="0.35em" fill="var(--text-secondary)" fontSize={13}>
+        {String(payload.value)}
+      </text>
+    </g>
+  )
+}
+
 /** Horizontal bars, largest first. Every bar is labeled at its tip, so no value axis. */
 export function CategoryChart({ rows, currency }: { rows: ChartRow[]; currency: string | null }) {
   const height = rows.length * 36 + 8
+  const renderBar = ({ isActive, ...props }: BarShapeProps) => (
+    <Rectangle
+      {...props}
+      fill={categoryColor(rows[props.index]?.category ?? null)}
+      fillOpacity={isActive ? 0.8 : 1}
+    />
+  )
   return (
     <>
       <ResponsiveContainer width="100%" height={height}>
@@ -52,18 +83,18 @@ export function CategoryChart({ rows, currency }: { rows: ChartRow[]; currency: 
           <YAxis
             type="category"
             dataKey="label"
-            width={120}
+            width={CATEGORY_AXIS_WIDTH}
             tickLine={false}
             axisLine={{ stroke: 'var(--baseline)' }}
-            tick={{ fill: 'var(--text-secondary)', fontSize: 13 }}
+            tick={(props: YAxisTickContentProps) => <CategoryTick {...props} rows={rows} />}
           />
           <Tooltip cursor={{ fill: 'var(--hover-wash)' }} content={<ChartTooltip currency={currency} />} />
           <Bar
             dataKey="value"
-            fill="var(--series-1)"
             radius={[0, 4, 4, 0]}
             maxBarSize={24}
-            activeBar={{ fillOpacity: 0.8 }}
+            shape={renderBar}
+            activeBar={renderBar}
             isAnimationActive={false}
           >
             <LabelList
@@ -141,7 +172,7 @@ function TableView({
         <tbody>
           {rows.map((row) => (
             <tr key={row.label}>
-              <td>{row.label}</td>
+              <td>{row.category !== undefined ? <CategoryTag category={row.category} /> : row.label}</td>
               <td className="num">{formatMoney(row.value, currency)}</td>
             </tr>
           ))}
