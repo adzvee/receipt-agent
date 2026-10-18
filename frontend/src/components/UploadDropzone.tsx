@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState, type DragEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { uploadReceipt } from '../api'
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf'
+const PHOTO_TYPES = 'image/jpeg,image/png,image/webp'
+const ACCEPT = `${PHOTO_TYPES},application/pdf`
 
 interface UploadState {
   key: string
@@ -17,6 +18,7 @@ interface UploadState {
 export function UploadDropzone() {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [uploads, setUploads] = useState<UploadState[]>([])
 
@@ -49,6 +51,11 @@ export function UploadDropzone() {
     uploadAll([...event.dataTransfer.files])
   }
 
+  function onChoose(event: ChangeEvent<HTMLInputElement>) {
+    uploadAll([...(event.target.files ?? [])])
+    event.target.value = '' // allow choosing the same file again
+  }
+
   return (
     <section>
       <div
@@ -67,6 +74,10 @@ export function UploadDropzone() {
           </button>
         </p>
         <p className="muted">Photos, screenshots, or PDFs, up to 10 MB each.</p>
+        {/* Touch screens only: desktop browsers ignore `capture` and would show a file picker. */}
+        <button type="button" className="primary touch-only" onClick={() => cameraRef.current?.click()}>
+          Take photo
+        </button>
         <input
           ref={inputRef}
           type="file"
@@ -74,10 +85,16 @@ export function UploadDropzone() {
           multiple
           hidden
           aria-label="Upload receipts"
-          onChange={(event) => {
-            uploadAll([...(event.target.files ?? [])])
-            event.target.value = '' // allow choosing the same file again
-          }}
+          onChange={onChoose}
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept={PHOTO_TYPES}
+          capture="environment"
+          hidden
+          aria-label="Take a photo of a receipt"
+          onChange={onChoose}
         />
       </div>
 

@@ -58,6 +58,23 @@ it('uploads a file and links to the new receipt', async () => {
   expect((upload!.init!.body as FormData).get('file')).toBe(file)
 })
 
+it('uploads a photo taken with the camera', async () => {
+  const { calls } = mockApi({
+    'GET /receipts': [],
+    'POST /receipts': makeReceipt({ id: 7 }),
+  })
+  renderWithProviders(<ReceiptsPage />)
+
+  const camera = screen.getByLabelText('Take a photo of a receipt')
+  expect(camera).toHaveAttribute('capture', 'environment')
+  const photo = new File(['fake'], 'image.jpg', { type: 'image/jpeg' })
+  await userEvent.upload(camera, photo)
+
+  expect(await screen.findByRole('link', { name: 'Added' })).toHaveAttribute('href', '/receipts/7')
+  const upload = calls.find((call) => call.method === 'POST')
+  expect((upload!.init!.body as FormData).get('file')).toBe(photo)
+})
+
 it('shows why an upload was rejected', async () => {
   mockApi({
     'GET /receipts': [],

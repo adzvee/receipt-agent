@@ -399,6 +399,17 @@ main {
   margin: 0.2rem 0;
 }
 
+.touch-only {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .dropzone .touch-only {
+    display: inline-block;
+    margin-top: 0.75rem;
+  }
+}
+
 .link-button {
   border: none;
   background: none;
