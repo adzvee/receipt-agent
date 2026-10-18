@@ -111,13 +111,29 @@ def test_currencies_are_never_added_together(db_session):
     }
 
 
-def test_no_matching_spending_returns_no_groups(db_session, september):
-    assert (
-        call(db_session, "spending_summary", start_date="2020-01-01", end_date="2020-12-31")[
-            "groups"
-        ]
-        == []
-    )
+def test_no_matching_spending_says_the_empty_result_is_final(db_session, september):
+    result = call(db_session, "spending_summary", start_date="2020-01-01", end_date="2020-12-31")
+
+    assert result["groups"] == []
+    assert "complete answer" in result["result"]
+    assert "no receipts yet" not in result["result"]  # the account does have receipts
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        ("spending_summary", {"categories": ["groceries", "dining"], "group_by": "category"}),
+        ("list_receipts", {"sort": "largest"}),
+        ("search_line_items", {"text": "coffee"}),
+    ],
+)
+def test_empty_account_says_there_are_no_receipts_yet(db_session, name, arguments):
+    default_user(db_session)  # exists, with no receipts
+
+    result = call(db_session, name, **arguments)
+
+    assert "error" not in result  # categories with no receipts are still valid filters
+    assert "no receipts yet" in result["result"]
 
 
 # --- list_receipts / get_receipt ---

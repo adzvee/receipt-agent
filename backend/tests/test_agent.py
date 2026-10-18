@@ -2,7 +2,12 @@
 
 from datetime import date
 
-from app.agent.agent import MAX_STEPS, TOO_MANY_STEPS_ANSWER, answer_question
+from app.agent.agent import (
+    FINAL_STEP_INSTRUCTION,
+    MAX_STEPS,
+    TOO_MANY_STEPS_ANSWER,
+    answer_question,
+)
 from app.llm import AssistantMessage, ToolCall, ToolResultMessage, UserMessage
 from tests.factories import add_receipt, default_user
 
@@ -75,10 +80,59 @@ def test_tool_error_goes_back_to_the_model_so_it_can_recover(fake_llm, db_sessio
     assert result.answer == "You spent nothing on dining."
 
 
-def test_stops_after_max_steps(fake_llm, db_session):
+def test_question_on_an_empty_account_is_answered_in_one_tool_call(fake_llm, db_session):
+    food_last_month = tool_call(
+        "spending_summary",
+        categories=["groceries", "dining"],
+        start_date="2026-09-01",
+        end_date="2026-09-30",
+    )
+    fake_llm.chat_replies = [
+        food_last_month,
+        AssistantMessage(text="$0, no receipts in that period (September 1-30, 2026)."),
+    ]
+
+    result = ask(fake_llm, db_session, "How much did I spend on food last month?")
+
+    assert result.answer == "$0, no receipts in that period (September 1-30, 2026)."
+    assert len(result.tool_calls) == 1
+    # What the model saw: a valid, empty result that tells it not to keep searching.
+    tool_result = fake_llm.chat_calls[1]["messages"][-1].result
+    assert tool_result["groups"] == []
+    assert "no receipts yet" in tool_result["result"]
+
+
+def test_system_prompt_says_empty_results_are_final_and_food_is_groceries_and_dining(
+    fake_llm, db_session
+):
+    fake_llm.chat_replies = [AssistantMessage(text="Hi!")]
+
+    ask(fake_llm, db_session, "Hello")
+
+    system = fake_llm.chat_calls[0]["system"]
+    assert "always exist, even with no receipts" in system
+    assert '"Food" means the\n  groceries and dining categories' in system
+    assert "An empty tool result is a complete, correct answer" in system
+
+
+def test_last_step_must_answer_without_tools(fake_llm, db_session):
+    fake_llm.chat_replies = [tool_call("spending_summary")] * (MAX_STEPS - 1) + [
+        AssistantMessage(text="You have no spending on record.")
+    ]
+
+    result = ask(fake_llm, db_session, "Keep checking")
+
+    assert result.answer == "You have no spending on record."
+    allowed = [c["allow_tool_calls"] for c in fake_llm.chat_calls]
+    assert allowed == [True] * (MAX_STEPS - 1) + [False]
+    assert fake_llm.chat_calls[-1]["messages"][-1] == UserMessage(FINAL_STEP_INSTRUCTION)
+
+
+def test_stops_after_max_steps_if_the_model_still_calls_tools(fake_llm, db_session):
     fake_llm.chat_replies = [tool_call("spending_summary")] * MAX_STEPS
 
     result = ask(fake_llm, db_session, "Loop forever")
 
     assert result.answer == TOO_MANY_STEPS_ANSWER
     assert len(fake_llm.chat_calls) == MAX_STEPS
+    assert len(result.tool_calls) == MAX_STEPS - 1  # the last step's calls never ran

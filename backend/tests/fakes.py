@@ -31,8 +31,15 @@ class FakeLLM:
     def calls_for(self, response_model: type[BaseModel]) -> list[dict]:
         return [c for c in self.calls if c["response_model"] is response_model]
 
-    def chat(self, *, system, messages, tools):
-        self.chat_calls.append({"system": system, "messages": list(messages), "tools": tools})
+    def chat(self, *, system, messages, tools, allow_tool_calls=True):
+        self.chat_calls.append(
+            {
+                "system": system,
+                "messages": list(messages),
+                "tools": tools,
+                "allow_tool_calls": allow_tool_calls,
+            }
+        )
         reply = self.chat_replies.pop(0)
         if isinstance(reply, LLMError):
             raise reply

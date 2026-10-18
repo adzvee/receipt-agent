@@ -93,6 +93,17 @@ def _apply_filters(query: Select, filters: ReceiptFilters) -> Select:
     return query
 
 
+def _no_matches(db: Session, user_id: int) -> str:
+    """Tells the model an empty result is final, so it answers instead of re-checking."""
+    has_receipts = db.scalar(select(Receipt.id).where(Receipt.user_id == user_id).limit(1))
+    if has_receipts is None:
+        return (
+            "This account has no receipts yet, so nothing matches. This is a complete answer "
+            "(e.g. $0 spent); don't search again."
+        )
+    return "No receipts match these filters. This is a complete answer, not an error."
+
+
 def _receipt_summary(receipt: Receipt) -> dict[str, Any]:
     return {
         "id": receipt.id,
@@ -134,6 +145,8 @@ def spending_summary(db: Session, args: SpendingSummaryArgs, user_id: int) -> di
         if group_label is not None:
             group = {args.group_by: str(row.group) if row.group else "(none)", **group}
         groups.append(group)
+    if not groups:
+        return {"groups": [], "result": _no_matches(db, user_id)}
     return {"groups": groups, "note": COUNTED_NOTE}
 
 
@@ -151,6 +164,8 @@ def list_receipts(db: Session, args: ListReceiptsArgs, user_id: int) -> dict[str
         query = query.where(has_open_flag if args.needs_review else ~has_open_flag)
 
     receipts = list(db.scalars(query.limit(args.limit + 1)))
+    if not receipts:
+        return {"receipts": [], "result": _no_matches(db, user_id)}
     return {
         "receipts": [_receipt_summary(r) for r in receipts[: args.limit]],
         "more_results": len(receipts) > args.limit,
@@ -191,6 +206,8 @@ def search_line_items(db: Session, args: SearchLineItemsArgs, user_id: int) -> d
         .order_by(Receipt.purchase_date.desc().nulls_last(), LineItem.id)
         .limit(args.limit + 1)
     ).all()
+    if not rows:
+        return {"matches": [], "result": _no_matches(db, user_id)}
     totals = db.execute(
         matching(
             select(Receipt.currency, func.sum(LineItem.amount), func.count(LineItem.id))

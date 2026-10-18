@@ -78,10 +78,16 @@ class LLMClient(Protocol):
         ...
 
     def chat(
-        self, *, system: str, messages: list[ChatMessage], tools: list[ToolSpec]
+        self,
+        *,
+        system: str,
+        messages: list[ChatMessage],
+        tools: list[ToolSpec],
+        allow_tool_calls: bool = True,
     ) -> AssistantMessage:
         """One model turn: returns either a final text answer or tool calls to run.
 
         The caller runs any requested tools and calls `chat` again with the results.
+        With `allow_tool_calls=False` the model must answer in text from what it has.
         """
         ...

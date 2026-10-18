@@ -83,20 +83,36 @@ class GeminiClient:
             raise LLMError(f"Gemini returned output that doesn't match the schema: {exc}") from exc
 
     def chat(
-        self, *, system: str, messages: list[ChatMessage], tools: list[ToolSpec]
+        self,
+        *,
+        system: str,
+        messages: list[ChatMessage],
+        tools: list[ToolSpec],
+        allow_tool_calls: bool = True,
     ) -> AssistantMessage:
         config = types.GenerateContentConfig(
             system_instruction=system,
+            # The tools stay declared even when calls aren't allowed, because earlier turns
+            # in `messages` refer to them.
             tools=[types.Tool(function_declarations=[_to_declaration(t) for t in tools])],
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode="AUTO" if allow_tool_calls else "NONE"
+                )
+            ),
             # We run tools ourselves (see app/agent), so the SDK must not.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             temperature=0,
         )
         response = self._generate_with_retries(contents=_to_contents(messages), config=config)
 
-        content = response.candidates[0].content if response.candidates else None
-        if content is None:
-            raise LLMError("Gemini returned an empty response.")
+        candidate = response.candidates[0] if response.candidates else None
+        content = candidate.content if candidate else None
+        if content is None or not content.parts:
+            # e.g. a blocked reply, or MALFORMED_FUNCTION_CALL. Say so, rather than letting
+            # it look like an empty answer.
+            reason = candidate.finish_reason if candidate else "no candidates"
+            raise LLMError(f"Gemini returned no reply (finish reason: {reason}).")
         parts = content.parts or []
         text = "".join(p.text for p in parts if p.text and not p.thought) or None
         tool_calls = [

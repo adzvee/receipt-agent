@@ -28,15 +28,19 @@ class FakeGenaiClient:
     def __init__(self, outcomes: list):
         self.outcomes = outcomes
         self.calls = 0
+        self.last_request: dict = {}
         self.models = self
 
     def generate_content(self, **kwargs):
         self.calls += 1
+        self.last_request = kwargs
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
             raise outcome
         if isinstance(outcome, types.Content):
             return SimpleNamespace(candidates=[SimpleNamespace(content=outcome)])
+        if isinstance(outcome, types.Candidate):
+            return SimpleNamespace(candidates=[outcome])
         return SimpleNamespace(parsed=outcome, text=None)
 
 
@@ -165,6 +169,27 @@ def test_chat_returns_text_answer_without_thoughts():
 
     assert reply.text == "You spent $20."
     assert reply.tool_calls == []
+
+
+def test_chat_can_forbid_tool_calls_while_keeping_tools_declared():
+    client, fake, _ = make_client([types.Content(role="model", parts=[types.Part(text="Done.")])])
+
+    client.chat(system="sys", messages=[UserMessage("Q")], tools=TOOL_SPECS, allow_tool_calls=False)
+
+    config = fake.last_request["config"]
+    assert config.tool_config.function_calling_config.mode == "NONE"
+    assert len(config.tools[0].function_declarations) == len(TOOL_SPECS)
+
+
+def test_chat_reply_without_parts_is_an_error_not_an_empty_answer():
+    malformed = types.Candidate(
+        content=types.Content(role="model", parts=[]),
+        finish_reason=types.FinishReason.MALFORMED_FUNCTION_CALL,
+    )
+    client, _, _ = make_client([malformed])
+
+    with pytest.raises(LLMError, match="MALFORMED_FUNCTION_CALL"):
+        chat(client, [UserMessage("How much?")])
 
 
 def test_to_contents_replays_model_turn_and_groups_tool_results():
