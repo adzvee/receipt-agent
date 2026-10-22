@@ -3,6 +3,7 @@ import { Camera, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { uploadReceipt } from '../api'
+import { useCurrentUser } from '../auth'
 
 const PHOTO_TYPES = 'image/jpeg,image/png,image/webp'
 const ACCEPT = `${PHOTO_TYPES},application/pdf`
@@ -23,6 +24,14 @@ export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [uploads, setUploads] = useState<UploadState[]>([])
+  const left = useCurrentUser().data?.receipts_left_today
+  const atLimit = left === 0
+  const limitNote =
+    left === undefined
+      ? null
+      : atLimit
+        ? "You've reached today's limit of receipts. It resets at midnight UTC."
+        : `${left} ${left === 1 ? 'upload' : 'uploads'} left today.`
 
   const update = (key: string, changes: Partial<UploadState>) =>
     setUploads((current) => current.map((u) => (u.key === key ? { ...u, ...changes } : u)))
@@ -64,6 +73,7 @@ export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
       type="button"
       className={`touch-only${prominent ? ' large' : ' primary'}`}
       onClick={() => cameraRef.current?.click()}
+      disabled={atLimit}
     >
       <Camera aria-hidden="true" size={18} /> Take photo
     </button>
@@ -86,6 +96,7 @@ export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
               type="button"
               className="primary large"
               onClick={() => inputRef.current?.click()}
+              disabled={atLimit}
             >
               <Upload aria-hidden="true" size={18} /> Upload receipt
             </button>
@@ -102,6 +113,7 @@ export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
                 type="button"
                 className="link-button"
                 onClick={() => inputRef.current?.click()}
+                disabled={atLimit}
               >
                 choose files
               </button>
@@ -109,6 +121,11 @@ export function UploadDropzone({ prominent = false }: { prominent?: boolean }) {
             <p className="muted">Photos, screenshots, or PDFs, up to 10 MB each.</p>
             {cameraButton}
           </>
+        )}
+        {limitNote && (
+          <p className={atLimit ? 'limit-note error-text' : 'limit-note muted small'}>
+            {limitNote}
+          </p>
         )}
         <input
           ref={inputRef}

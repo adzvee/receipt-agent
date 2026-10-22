@@ -17,6 +17,7 @@ from app.extraction import ExtractedReceipt
 from app.llm import get_llm
 from app.main import app
 from app.models import User
+from app.rate_limit import ALL_LIMITERS
 from app.storage import LocalFileStorage, get_storage
 from tests.factories import default_user, make_category_decision, make_extracted_receipt, make_user
 from tests.fakes import FakeLLM
@@ -130,3 +131,11 @@ def client(anon_client, user) -> TestClient:
 def other_client(anon_client, other_user) -> TestClient:
     """A client logged in as a different user, for checking data isolation."""
     return logged_in_client(other_user)
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits() -> Iterator[None]:
+    """Rate-limit counts live in memory; start every test from zero."""
+    for limiter in ALL_LIMITERS:
+        limiter.reset()
+    yield

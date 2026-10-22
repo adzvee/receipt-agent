@@ -13,6 +13,9 @@ const DashboardPage = lazy(() =>
 const ReceiptsPage = lazy(() =>
   import('./pages/ReceiptsPage').then((m) => ({ default: m.ReceiptsPage })),
 )
+const AccountPage = lazy(() =>
+  import('./pages/AccountPage').then((m) => ({ default: m.AccountPage })),
+)
 const ReceiptDetailPage = lazy(() =>
   import('./pages/ReceiptDetailPage').then((m) => ({ default: m.ReceiptDetailPage })),
 )
@@ -47,7 +50,9 @@ function SignedInApp({ user }: { user: User }) {
           <NavLink to="/receipts">Receipts</NavLink>
         </nav>
         <div className="account">
-          <span className="muted">{user.is_demo ? 'Demo account' : user.email}</span>
+          <NavLink to="/account" className="account-link">
+            {user.is_demo ? 'Demo account' : user.email}
+          </NavLink>
           <button type="button" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
             Log out
           </button>
@@ -67,6 +72,7 @@ function SignedInApp({ user }: { user: User }) {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/receipts" element={<ReceiptsPage />} />
             <Route path="/receipts/:id" element={<ReceiptDetailPage />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route path="*" element={<p>Page not found.</p>} />
           </Routes>
         </Suspense>

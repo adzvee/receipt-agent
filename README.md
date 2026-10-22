@@ -76,7 +76,8 @@ in, and only ever sees the logged-in user's data.
 | `POST` | `/auth/register` | Create an account (`{"email", "password"}`, 8+ characters) and log in. |
 | `POST` | `/auth/login` | Log in. Sets an HttpOnly session cookie. |
 | `POST` | `/auth/logout` | Log out. |
-| `GET` | `/auth/me` | The logged-in user (and their email forwarding address). |
+| `GET` | `/auth/me` | The logged-in user, their email forwarding address, and what's left of today's limits. |
+| `DELETE` | `/auth/me` | Delete the account, all its receipts, and their files (`{"password"}`; none for demos). |
 | `POST` | `/auth/demo` | Create a private demo account with sample data, and log into it. |
 | `POST` | `/receipts` | Upload a receipt (JPEG, PNG, WebP, or PDF, max 10 MB). Extracts, validates, and saves it. |
 | `GET` | `/receipts` | List receipts, newest first. `?needs_review=true` for flagged ones only; `?limit=N` for the first N. |
@@ -183,6 +184,20 @@ not instructions.
   demo receipt goes through the real validation, duplicate, and anomaly checks (four are
   built to trip one each). Demo accounts are deleted after 24 hours and are capped at 25
   AI-backed requests, so a public demo can't exhaust the LLM quota.
+- **Deleting an account** (Account page, `DELETE /auth/me`) needs the password, then
+  removes the user, every receipt with its line items and flags, forwarded emails, usage
+  counts (all via `ON DELETE CASCADE`), and the uploaded files.
+- **Full card numbers are never stored.** The extraction prompt asks for brand and last 4
+  only, but that's a request, not a guarantee, so `app/redaction.py` masks any 13-19 digit
+  number that passes the card checksum (Luhn) to `•••• 4242` in every extracted text
+  field, the raw model answer, and forwarded email text, before anything is saved.
+- **Limits.** Every account gets 5 receipts (uploaded or forwarded) and 10 chat questions
+  per UTC day, counted with one atomic Postgres upsert so parallel requests can't slip
+  past. Login is limited to 10 attempts a minute per IP and 20 an hour per email;
+  sign-ups and demos to 5 an hour per IP; and at most 100 demo accounts exist at once.
+  The per-IP counters live in memory, which suits a single server.
+- **It's a portfolio project:** the sign-up page and dashboard ask people not to upload
+  real or sensitive receipts.
 
 ### The frontend
 

@@ -84,6 +84,8 @@ export function makeUser(overrides: Partial<User> = {}): User {
     is_demo: false,
     forwarding_address: null,
     demo_requests_left: null,
+    receipts_left_today: 5,
+    questions_left_today: 10,
     ...overrides,
   }
 }

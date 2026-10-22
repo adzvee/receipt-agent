@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
-import { errorResponse, makeReceipt, mockApi, renderWithProviders } from '../test/utils'
+import { errorResponse, makeReceipt, makeUser, mockApi, renderWithProviders } from '../test/utils'
 import { ReceiptsPage } from './ReceiptsPage'
 
 const flagged = makeReceipt({
@@ -145,3 +145,13 @@ it('shows a thumbnail for photos, an icon otherwise, and each category with its 
     expect(tag?.querySelector('svg')).not.toBeNull()
   }
 })
+
+
+it('shows uploads left today, and turns uploading off at the limit', async () => {
+  mockApi({ 'GET /receipts': [], 'GET /auth/me': makeUser({ receipts_left_today: 0 }) })
+  renderWithProviders(<ReceiptsPage />)
+
+  expect(await screen.findByText(/today's limit of receipts/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'choose files' })).toBeDisabled()
+})
+

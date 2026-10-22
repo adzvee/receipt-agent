@@ -11,7 +11,8 @@ from app.agent.agent import answer_question
 from app.auth import CurrentUser
 from app.db import DbSession, make_read_only
 from app.llm import AssistantMessage, LLMDep, LLMError, UserMessage
-from app.quota import use_llm_request
+from app.models import UsageKind
+from app.quota import use_daily, use_llm_request
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ def chat(request: ChatRequest, user: CurrentUser, db: DbSession, llm: LLMDep) ->
         UserMessage(turn.content) if turn.role == "user" else AssistantMessage(text=turn.content)
         for turn in request.history
     ]
+    use_daily(db, user, UsageKind.QUESTIONS)
     use_llm_request(db, user)
     db.commit()  # save the count before the transaction becomes read-only
     make_read_only(db)

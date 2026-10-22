@@ -193,3 +193,21 @@ class InboundEmail(Base):
     classification_reason: Mapped[str] = mapped_column(Text)
 
     receipts: Mapped[list[Receipt]] = relationship(order_by="Receipt.id")
+
+
+class UsageKind(enum.StrEnum):
+    RECEIPTS = "receipts"  # receipts added (uploaded or forwarded)
+    QUESTIONS = "questions"  # chat questions
+
+
+class DailyUsage(Base):
+    """How many receipts and questions an account used on a (UTC) day, for daily limits."""
+
+    __tablename__ = "daily_usage"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    kind: Mapped[UsageKind] = mapped_column(str_enum(UsageKind), primary_key=True)
+    count: Mapped[int] = mapped_column(default=0)

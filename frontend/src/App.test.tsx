@@ -12,6 +12,9 @@ it('shows the login page when nobody is logged in', async () => {
 
   expect(await screen.findByRole('button', { name: 'Try the demo' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument()
+  expect(screen.getByRole('note')).toHaveTextContent(
+    "This is a portfolio project. Please don't upload real or sensitive receipts.",
+  )
 })
 
 it('logs in and shows the app', async () => {

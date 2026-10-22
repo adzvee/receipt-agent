@@ -13,6 +13,7 @@ it('shows one welcome state on an empty account', async () => {
   renderWithProviders(<DashboardPage />)
 
   expect(await screen.findByRole('button', { name: 'Upload receipt' })).toBeInTheDocument()
+  expect(screen.getByRole('note')).toHaveTextContent(/portfolio project/)
   expect(await screen.findByText(ADDRESS)).toBeInTheDocument()
   expect(screen.getByText(/Uber, Amazon/)).toBeInTheDocument()
   // The chat box stays, but nothing that only makes sense with data.
@@ -32,6 +33,7 @@ it('shows the full dashboard once there is a receipt, with a $ on zero totals', 
   renderWithProviders(<DashboardPage />)
 
   expect(await screen.findByRole('group', { name: 'Time period' })).toBeInTheDocument()
+  expect(screen.getByRole('note')).toHaveTextContent(/portfolio project/)
   expect(await screen.findByText('$0.00')).toBeInTheDocument()
   expect(screen.getByText('How much did I spend on food last month?')).toBeInTheDocument()
   expect(calls.some((call) => call.path === '/receipts' && call.search === '?limit=1')).toBe(true)

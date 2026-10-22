@@ -78,6 +78,8 @@ export interface User {
   is_demo: boolean
   forwarding_address: string | null
   demo_requests_left: number | null
+  receipts_left_today: number // daily limits reset at midnight UTC
+  questions_left_today: number
 }
 
 export class ApiError extends Error {
@@ -144,6 +146,11 @@ export function logout(): Promise<void> {
 
 export function startDemo(): Promise<User> {
   return request('/auth/demo', { method: 'POST' })
+}
+
+/** Permanently delete the account and everything in it. Demo accounts need no password. */
+export function deleteAccount(password: string | null): Promise<void> {
+  return request('/auth/me', jsonBody('DELETE', { password }))
 }
 
 // --- Receipts ---

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { login, register, startDemo } from '../api'
 import { useSetCurrentUser } from '../auth'
+import { PortfolioNotice } from '../components/PortfolioNotice'
 
 type Mode = 'login' | 'register'
 
@@ -30,6 +31,7 @@ export function LoginPage() {
       <p className="subtitle">
         Turn receipt photos, PDFs, and forwarded emails into categorized, searchable spending.
       </p>
+      <PortfolioNotice />
 
       <section className="card demo-card">
         <h2>Just looking?</h2>

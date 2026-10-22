@@ -15,9 +15,10 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.accounts import delete_account
 from app.anomalies import find_anomaly_flags
 from app.auth import new_inbound_token
 from app.config import get_settings
@@ -351,14 +352,19 @@ def delete_expired_demo_accounts(db: Session, storage: FileStorage, now: datetim
     cutoff = now - timedelta(hours=get_settings().demo_ttl_hours)
     expired = db.scalars(select(User).where(User.is_demo, User.created_at < cutoff)).all()
     for user in expired:
-        for file_key in db.scalars(select(Receipt.file_key).where(Receipt.user_id == user.id)):
-            storage.delete(file_key)
-        db.delete(user)  # receipts, flags, and line items are deleted with it
+        delete_account(db, storage, user)
     return len(expired)
+
+
+class DemoCapacityError(Exception):
+    """Too many demo accounts are active; new ones can be made as old ones expire."""
 
 
 def create_demo_account(db: Session, storage: FileStorage, today: date | None = None) -> User:
     delete_expired_demo_accounts(db, storage, datetime.now(UTC))
+    active = db.scalar(select(func.count()).select_from(User).where(User.is_demo))
+    if active >= get_settings().demo_max_active:
+        raise DemoCapacityError
     user = User(
         # ".invalid" is reserved and can never be a real address.
         email=f"demo-{secrets.token_hex(6)}@demo.invalid",

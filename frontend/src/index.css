@@ -15,6 +15,7 @@
   --accent: #1c5cab; /* buttons & links: a darker step of the series hue, for text contrast */
   --accent-text: #ffffff;
   --critical: #b42f2f;
+  --critical-text: #ffffff; /* text on a --critical button */
   --warning-bg: #fdf1d6;
   --warning-ink: #6b4a00;
   --serious-bg: #fbe6dc;
@@ -59,6 +60,7 @@
     --accent: #86b6ef;
     --accent-text: #0b0b0b;
     --critical: #e66767;
+    --critical-text: #0b0b0b;
     --warning-bg: #3a2e10;
     --warning-ink: #fad27a;
     --serious-bg: #3b2218;
@@ -741,3 +743,76 @@ iframe.preview {
     gap: 0.5rem 1.25rem;
   }
 }
+
+/* --- Notices, account page --- */
+
+.notice {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+  font-size: 0.92rem;
+}
+
+.notice svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.app-header .account-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.app-header .account-link:hover,
+.app-header .account-link.active {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.limit-note {
+  margin-top: 0.6rem;
+}
+
+.account-page {
+  max-width: 640px;
+}
+
+.danger-zone {
+  border-color: var(--critical);
+}
+
+.delete-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.delete-form label:not(.checkbox) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button.danger {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: var(--critical-text);
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--critical);
+  filter: brightness(1.1);
+}
+

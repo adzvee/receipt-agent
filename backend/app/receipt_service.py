@@ -23,6 +23,7 @@ from app.models import (
     ReceiptSource,
     ReceiptStatus,
 )
+from app.redaction import redact_extraction
 from app.storage import FileStorage
 from app.validation import validate_receipt
 from app.vendors import normalize_vendor
@@ -82,6 +83,7 @@ def process_receipt_file(
 
 def apply_extraction(receipt: Receipt, extracted: ExtractedReceipt, today: date) -> None:
     """Copy extracted fields onto the receipt and flag any validation issues."""
+    extracted = redact_extraction(extracted)  # never store a full card number
     receipt.status = ReceiptStatus.EXTRACTED
     receipt.raw_extraction = extracted.model_dump(mode="json")
     receipt.vendor = extracted.vendor

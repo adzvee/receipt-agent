@@ -6,6 +6,7 @@ import { ChatPanel } from '../components/ChatPanel'
 import { CategoryChart, MonthlyChart, type ChartRow } from '../components/charts'
 import { OpenFlagBadges } from '../components/FlagBadge'
 import { ForwardingAddress } from '../components/ForwardingAddress'
+import { PortfolioNotice } from '../components/PortfolioNotice'
 import { UploadDropzone } from '../components/UploadDropzone'
 import {
   categoryLabel,
@@ -56,6 +57,7 @@ function Welcome() {
     <div className="dashboard">
       <div className="dashboard-main">
         <h1>Welcome to Receipt Agent</h1>
+        <PortfolioNotice />
         <section className="card welcome">
           <h2>Add your first receipt</h2>
           <p>
@@ -129,6 +131,7 @@ function Overview() {
     <div className="dashboard">
       <div className="dashboard-main">
         <h1>Dashboard</h1>
+        <PortfolioNotice />
 
         {!loading && !hasAnySpending && (
           <section className="card empty-state">

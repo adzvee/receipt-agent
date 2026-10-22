@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { askQuestion, type ChatTurn, type ToolCall } from '../api'
+import { useCurrentUser } from '../auth'
 import { describeToolCall } from '../format'
 import { SimpleMarkdown } from './SimpleMarkdown'
 
@@ -19,6 +20,8 @@ export function ChatPanel({ showSuggestions = true }: { showSuggestions?: boolea
   const queryClient = useQueryClient()
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
+  const left = useCurrentUser().data?.questions_left_today
+  const atLimit = left === 0
 
   const ask = useMutation({
     mutationFn: ({ question, history }: { question: string; history: ChatTurn[] }) =>
@@ -34,7 +37,7 @@ export function ChatPanel({ showSuggestions = true }: { showSuggestions?: boolea
 
   function send(question: string) {
     const text = question.trim()
-    if (!text || ask.isPending) return
+    if (!text || ask.isPending || atLimit) return
     // Earlier turns go along so follow-ups ("and in October?") have context.
     const history = messages.map(({ role, content }) => ({ role, content }))
     setMessages((current) => [...current, { role: 'user', content: text }])
@@ -55,7 +58,12 @@ export function ChatPanel({ showSuggestions = true }: { showSuggestions?: boolea
         {showSuggestions && messages.length === 0 && (
           <div className="suggestions">
             {SUGGESTIONS.map((suggestion) => (
-              <button key={suggestion} type="button" onClick={() => send(suggestion)}>
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => send(suggestion)}
+                disabled={atLimit}
+              >
                 {suggestion}
               </button>
             ))}
@@ -92,10 +100,17 @@ export function ChatPanel({ showSuggestions = true }: { showSuggestions?: boolea
           aria-label="Question"
           maxLength={1000}
         />
-        <button type="submit" disabled={!draft.trim() || ask.isPending}>
+        <button type="submit" disabled={!draft.trim() || ask.isPending || atLimit}>
           Ask
         </button>
       </form>
+      {left !== undefined && (
+        <p className={atLimit ? 'error-text small' : 'muted small'}>
+          {atLimit
+            ? "You've asked today's limit of questions. It resets at midnight UTC."
+            : `${left} ${left === 1 ? 'question' : 'questions'} left today.`}
+        </p>
+      )}
     </section>
   )
 }

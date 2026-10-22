@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
-import { errorResponse, mockApi, renderWithProviders } from '../test/utils'
+import { errorResponse, makeUser, mockApi, renderWithProviders } from '../test/utils'
 import { ChatPanel } from './ChatPanel'
 
 it('asks a question and shows the answer with how it was found', async () => {
@@ -32,9 +32,10 @@ it('sends earlier turns as history for follow-up questions', async () => {
   await userEvent.type(screen.getByLabelText('Question'), 'Dining in September?{Enter}')
   await screen.findByText('$20.')
   await userEvent.type(screen.getByLabelText('Question'), 'And October?{Enter}')
-  await waitFor(() => expect(calls).toHaveLength(2))
+  const chats = () => calls.filter((call) => call.method === 'POST')
+  await waitFor(() => expect(chats()).toHaveLength(2))
 
-  expect(JSON.parse(String(calls[1].init?.body))).toEqual({
+  expect(JSON.parse(String(chats()[1].init?.body))).toEqual({
     question: 'And October?',
     history: [
       { role: 'user', content: 'Dining in September?' },
@@ -50,7 +51,8 @@ it('a suggestion button asks that question', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Which receipts need review?' }))
 
   await screen.findByText('Nothing yet.')
-  expect(JSON.parse(String(calls[0].init?.body)).question).toBe('Which receipts need review?')
+  const chat = calls.find((call) => call.method === 'POST')
+  expect(JSON.parse(String(chat?.init?.body)).question).toBe('Which receipts need review?')
 })
 
 it('shows the error when the assistant is unavailable', async () => {
@@ -64,3 +66,15 @@ it('shows the error when the assistant is unavailable', async () => {
 
   expect(await screen.findByText(/assistant is unavailable/)).toBeInTheDocument()
 })
+
+
+it('shows how many questions are left today, and stops at the limit', async () => {
+  mockApi({ 'GET /auth/me': makeUser({ questions_left_today: 0 }) })
+  renderWithProviders(<ChatPanel />)
+
+  expect(await screen.findByText(/today's limit of questions/)).toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Question'), 'Hi')
+  expect(screen.getByRole('button', { name: 'Ask' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Which receipts need review?' })).toBeDisabled()
+})
+

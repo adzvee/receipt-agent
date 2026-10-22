@@ -11,8 +11,8 @@ from app.config import get_settings
 from app.db import DbSession
 from app.file_types import sniff_mime_type
 from app.llm import LLMDep
-from app.models import Category, CategorySource, Receipt, ReceiptFlag, User
-from app.quota import use_llm_request
+from app.models import Category, CategorySource, Receipt, ReceiptFlag, UsageKind, User
+from app.quota import use_daily, use_llm_request
 from app.receipt_service import process_receipt_file
 from app.schemas import ReceiptOut, ReceiptUpdate
 from app.storage import StorageDep
@@ -49,6 +49,7 @@ def upload_receipt(
             "Unsupported file type. Upload a JPEG, PNG, or WebP image, or a PDF.",
         )
 
+    use_daily(db, user, UsageKind.RECEIPTS)
     use_llm_request(db, user)
     return process_receipt_file(
         db=db,

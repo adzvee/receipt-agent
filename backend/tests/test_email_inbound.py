@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.email.inbound import EmailClassification
 from app.extraction import ExtractedReceipt
 from app.llm import LLMError
+from app.models import InboundEmail, Receipt
 from tests.factories import DEFAULT_MAILBOX
 from tests.fakes import PDF_BYTES, PNG_BYTES
 
@@ -270,3 +271,19 @@ def test_forwarding_address_uses_the_users_token(client, user, monkeypatch):
     me = client.get("/auth/me").json()
 
     assert me["forwarding_address"] == f"abc123+{user.inbound_token}@inbound.example.com"
+
+
+def test_card_numbers_in_forwarded_email_text_are_masked(client, fake_llm, db_session, storage):
+    card = "4111111111111111"  # a standard test card number
+    classify_as(fake_llm, is_receipt=True, location="body")
+    email = make_email(
+        Subject=f"Receipt for card {card}",
+        TextBody=f"Total $8.37 charged to {card}",
+    )
+
+    receipt_id = post(client, email).json()["receipt_ids"][0]
+
+    stored = storage.read(db_session.get(Receipt, receipt_id).file_key).decode()
+    assert card not in stored and "•••• 1111" in stored
+    record = db_session.query(InboundEmail).one()
+    assert card not in record.subject

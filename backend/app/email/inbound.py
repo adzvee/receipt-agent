@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 from app.email.html_text import html_to_text
 from app.file_types import sniff_mime_type
 from app.llm import LLMClient
-from app.models import InboundEmail, Receipt, ReceiptSource, User
+from app.models import InboundEmail, Receipt, ReceiptSource, UsageKind, User
+from app.quota import left_today, try_use_daily
 from app.receipt_service import process_receipt_file
+from app.redaction import mask_card_numbers
 from app.storage import FileStorage
 
 logger = logging.getLogger(__name__)
@@ -120,7 +122,8 @@ def body_as_file(email: PostmarkInboundEmail) -> ReceiptFile | None:
     if not text:
         return None
     header = f"From: {email.from_email}\nSubject: {email.subject}\n\n"
-    return ReceiptFile("email.txt", (header + text).encode("utf-8"), "text/plain")
+    body = mask_card_numbers(header + text)  # never store a full card number
+    return ReceiptFile("email.txt", body.encode("utf-8"), "text/plain")
 
 
 # --- Putting it together ---
@@ -166,6 +169,10 @@ def handle_inbound_email(
     if existing is not None:
         return InboundResult("duplicate", existing, existing.receipts)
 
+    if left_today(db, user, UsageKind.RECEIPTS) == 0:  # also checked before any LLM call
+        logger.info("Ignoring email %s: the account hit today's receipt limit", email.message_id)
+        return InboundResult("ignored", None, [])
+
     attachments = usable_attachments(email, max_attachment_bytes)
     if not attachments and not email.body_text():
         decision = EmailClassification(
@@ -181,9 +188,9 @@ def handle_inbound_email(
         message_id=email.message_id,
         user_id=user.id,
         from_email=email.from_email,
-        subject=email.subject,
+        subject=mask_card_numbers(email.subject),
         is_receipt=decision.is_receipt,
-        classification_reason=decision.reason,
+        classification_reason=mask_card_numbers(decision.reason),
     )
     db.add(record)
     db.flush()
@@ -195,6 +202,9 @@ def handle_inbound_email(
             # The receipt is in the body, or the model expected an attachment we can't use.
             files = [f for f in [body_as_file(email)] if f is not None]
         for file in files:
+            if not try_use_daily(db, user, UsageKind.RECEIPTS):
+                logger.info("Skipping the rest of email %s: daily limit", email.message_id)
+                break
             receipts.append(
                 process_receipt_file(
                     db=db,

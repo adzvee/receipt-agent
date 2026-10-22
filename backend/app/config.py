@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     access_token_minutes: int = 24 * 60
     demo_ttl_hours: int = 24
     demo_llm_request_limit: int = 25  # AI-backed uploads + chat questions per demo account
+    demo_max_active: int = 100  # unexpired demo accounts at once, so they can't fill the disk
+
+    # Per-account daily limits (UTC days), so one account can't use up the LLM quota.
+    daily_receipt_limit: int = 5  # uploaded or forwarded by email
+    daily_question_limit: int = 10  # chat questions
 
 
 @lru_cache
