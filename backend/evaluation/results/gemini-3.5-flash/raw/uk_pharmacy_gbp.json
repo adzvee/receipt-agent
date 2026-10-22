@@ -1,0 +1,24 @@
+{
+  "vendor": "GREENWAY PHARMACY",
+  "purchase_date": "2026-09-14",
+  "currency": "GBP",
+  "line_items": [
+    {
+      "description": "Ibuprofen 200mg x16",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 2.49
+    },
+    {
+      "description": "Sun cream SPF50",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 8.99
+    }
+  ],
+  "subtotal": null,
+  "tax": 1.91,
+  "tip": null,
+  "total": 11.48,
+  "payment_method": "Debit ending 6620"
+}

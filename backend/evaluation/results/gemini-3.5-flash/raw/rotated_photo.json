@@ -1,0 +1,24 @@
+{
+  "vendor": "PINE PHARMACY",
+  "purchase_date": "2026-10-09",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Allergy relief 30ct",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 12.99
+    },
+    {
+      "description": "Cough drops",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.49
+    }
+  ],
+  "subtotal": 16.48,
+  "tax": 0.99,
+  "tip": null,
+  "total": 17.47,
+  "payment_method": "Visa ending 5108"
+}

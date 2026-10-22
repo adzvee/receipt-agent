@@ -1,0 +1,30 @@
+{
+  "vendor": "BISTRO LUMIERE",
+  "purchase_date": "2026-04-03",
+  "currency": "EUR",
+  "line_items": [
+    {
+      "description": "Croque monsieur",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 12.5
+    },
+    {
+      "description": "Salade verte",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 6.5
+    },
+    {
+      "description": "Café",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 2.8
+    }
+  ],
+  "subtotal": null,
+  "tax": 1.98,
+  "tip": null,
+  "total": 21.8,
+  "payment_method": "Visa ending 3391"
+}

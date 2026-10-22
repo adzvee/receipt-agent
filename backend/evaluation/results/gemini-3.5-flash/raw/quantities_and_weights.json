@@ -1,0 +1,36 @@
+{
+  "vendor": "HILLTOP FARM STAND",
+  "purchase_date": "2026-08-29",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Honeycrisp apples",
+      "quantity": 1.25,
+      "unit_price": 3.99,
+      "amount": 4.99
+    },
+    {
+      "description": "Peaches",
+      "quantity": 2.0,
+      "unit_price": 1.49,
+      "amount": 2.98
+    },
+    {
+      "description": "Sweet corn",
+      "quantity": 6.0,
+      "unit_price": 0.5,
+      "amount": 3.0
+    },
+    {
+      "description": "Raw honey 12oz",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 9.0
+    }
+  ],
+  "subtotal": null,
+  "tax": null,
+  "tip": null,
+  "total": 19.97,
+  "payment_method": "Cash"
+}

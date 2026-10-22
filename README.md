@@ -267,6 +267,7 @@ receipt-agent/
 │   │   ├── storage.py         # File storage (local disk; S3 later)
 │   │   └── llm/               # Provider-agnostic LLM wrapper + Gemini implementation
 │   ├── alembic/        # Database migrations
+│   ├── evaluation/     # Labeled fake receipts + extraction accuracy script
 │   ├── samples/        # Fake example payloads
 │   └── tests/          # pytest suite
 ├── frontend/
@@ -282,7 +283,41 @@ receipt-agent/
 
 ## Evaluation
 
-_TODO (stage 8)._
+How accurate is extraction? `backend/evaluation/` measures it on 20 labeled, fake
+receipts, each built to test one thing that goes wrong in practice:
+
+| Kind | Samples |
+| --- | --- |
+| Photo quality | clean baseline, 14° rotation, blurry and low-res, faded thermal ink, shadow across half the receipt |
+| Formats | scanned PDF invoice, ride-app screenshot, 16-item receipt |
+| Reading what's there | handwritten tip and total, discounts as negative items, quantity × price and per-pound lines, cash tendered and change (not the total) |
+| Dates and money | US `04/10` vs French `03/04` date order, `Sat, Sep 5 2026`, EUR/GBP with VAT included, `$` + `CAD`, no currency printed (must be null, not "USD") |
+| Should be flagged | a misprinted total (must be copied as printed, not fixed) and a receipt with no date |
+
+Each sample is defined once in `evaluation/samples.py`: the same values draw the image and
+write its label, so they can't disagree. A test feeds every label back through scoring as a
+"perfect model" and requires 100%, which also proves the labels' arithmetic adds up and
+that exactly the two broken receipts trip the app's validation.
+
+```bash
+cd backend
+python -m evaluation.run              # the model in GEMINI_MODEL; ~20 requests
+python -m evaluation.run --no-calls   # re-score saved answers, no requests
+```
+
+Scoring is per field, judged like a person would: amounts must match to the cent; vendor
+names match loosely (`FRESH MART #112` = `Fresh Mart`); payment matches on card brand and
+last 4 digits; line items must all be found (same amount, similar name) with no extras;
+and a value that isn't printed must come back as null. A `flag_decision` row checks that
+the app's validation flags exactly the receipts it should. Raw model answers are saved in
+`evaluation/results/<model>/raw/`, so a run stopped by rate limits resumes where it left
+off, and the report is written to `evaluation/results/<model>/report.md`.
+
+**Results (gemini-3.5-flash), partial:** the free tier's 20 requests/day ran out after
+12 of the 20 receipts. Those 12 scored 100% on every field (50/50 line items). The 8 not
+yet run include the hardest cases (misprinted total, no date, no currency symbol, cash
+with change, CAD, the PDF, the screenshot, and the shadowed photo), so this is not yet a
+fair headline number. [Latest report](backend/evaluation/results/gemini-3.5-flash/report.md).
 
 ## Demo
 
@@ -297,6 +332,6 @@ _TODO: link._
 - [x] 5. Email forwarding (Postmark inbound webhook)
 - [x] 6. Frontend: upload, list, flags, dashboard, chat
 - [x] 7. User accounts + demo account
-- [ ] 8. Extraction evaluation script
+- [x] 8. Extraction evaluation script
 - [ ] 9. Deployment (Docker, Terraform, CD)
 - [ ] 10. Final README

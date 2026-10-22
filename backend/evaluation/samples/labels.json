@@ -1,0 +1,790 @@
+[
+  {
+    "id": "grocery_clean",
+    "file": "grocery_clean.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "A clean, upright grocery receipt: the baseline.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Fresh Mart",
+      "purchase_date": "2026-09-12",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Bananas",
+          "amount": "1.29",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Whole milk 1 gal",
+          "amount": "4.19",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Sourdough bread",
+          "amount": "5.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Eggs dozen",
+          "amount": "3.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Spinach",
+          "amount": "2.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Dish soap",
+          "amount": "3.79",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "21.74",
+      "tax": "0.27",
+      "tip": null,
+      "total": "22.01",
+      "payment_method": "Visa ending 4242"
+    }
+  },
+  {
+    "id": "cafe_us_date",
+    "file": "cafe_us_date.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "US date format 04/10/2026 means April 10, not October 4.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Corner Cafe",
+      "purchase_date": "2026-04-10",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Oat latte",
+          "amount": "5.25",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Almond croissant",
+          "amount": "4.50",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "9.75",
+      "tax": "0.87",
+      "tip": null,
+      "total": "10.62",
+      "payment_method": "Mastercard ending 8810"
+    }
+  },
+  {
+    "id": "restaurant_handwritten_tip",
+    "file": "restaurant_handwritten_tip.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Tip and final total are handwritten; the printed 'Amount' is not the total.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Lakeside Grill",
+      "purchase_date": "2026-09-19",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Grilled salmon",
+          "amount": "26.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Ribeye",
+          "amount": "34.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "House salad",
+          "amount": "9.50",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Iced tea",
+          "amount": "3.50",
+          "quantity": "2",
+          "unit_price": "1.75"
+        }
+      ],
+      "subtotal": "73.00",
+      "tax": "5.84",
+      "tip": "14.00",
+      "total": "92.84",
+      "payment_method": "Amex ending 1007"
+    }
+  },
+  {
+    "id": "eu_vat_included",
+    "file": "eu_vat_included.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "French receipt: VAT already included in prices, and 03/04 means 3 April.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Bistro Lumiere",
+      "purchase_date": "2026-04-03",
+      "currency": "EUR",
+      "line_items": [
+        {
+          "description": "Croque monsieur",
+          "amount": "12.50",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Salade verte",
+          "amount": "6.50",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Café",
+          "amount": "2.80",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": "1.98",
+      "tip": null,
+      "total": "21.80",
+      "payment_method": "Visa ending 3391"
+    }
+  },
+  {
+    "id": "uk_pharmacy_gbp",
+    "file": "uk_pharmacy_gbp.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Pound sterling, UK date order, VAT included.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Greenway Pharmacy",
+      "purchase_date": "2026-09-14",
+      "currency": "GBP",
+      "line_items": [
+        {
+          "description": "Ibuprofen 200mg x16",
+          "amount": "2.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Sun cream SPF50",
+          "amount": "8.99",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": "1.91",
+      "tip": null,
+      "total": "11.48",
+      "payment_method": "Debit ending 6620"
+    }
+  },
+  {
+    "id": "discounts",
+    "file": "discounts.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Coupon and member savings must be negative line items.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "HomeGoods Depot",
+      "purchase_date": "2026-10-02",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Bath towel set",
+          "amount": "24.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Storage bins 3pk",
+          "amount": "18.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "COUPON 20% TOWELS",
+          "amount": "-5.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Desk lamp",
+          "amount": "29.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "MEMBER SAVINGS",
+          "amount": "-2.50",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "65.97",
+      "tax": "4.29",
+      "tip": null,
+      "total": "70.26",
+      "payment_method": "Discover ending 9014"
+    }
+  },
+  {
+    "id": "quantities_and_weights",
+    "file": "quantities_and_weights.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Quantity x unit price lines, including a weight in pounds.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Hilltop Farm Stand",
+      "purchase_date": "2026-08-29",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Honeycrisp apples",
+          "amount": "4.99",
+          "quantity": "1.25",
+          "unit_price": "3.99"
+        },
+        {
+          "description": "Peaches",
+          "amount": "2.98",
+          "quantity": "2",
+          "unit_price": "1.49"
+        },
+        {
+          "description": "Sweet corn",
+          "amount": "3.00",
+          "quantity": "6",
+          "unit_price": "0.50"
+        },
+        {
+          "description": "Raw honey 12oz",
+          "amount": "9.00",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": null,
+      "total": "19.97",
+      "payment_method": "Cash"
+    }
+  },
+  {
+    "id": "rotated_photo",
+    "file": "rotated_photo.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Photo taken at a 14 degree angle.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Pine Pharmacy",
+      "purchase_date": "2026-10-09",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Allergy relief 30ct",
+          "amount": "12.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Cough drops",
+          "amount": "3.49",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "16.48",
+      "tax": "0.99",
+      "tip": null,
+      "total": "17.47",
+      "payment_method": "Visa ending 5108"
+    }
+  },
+  {
+    "id": "blurry_low_res",
+    "file": "blurry_low_res.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Small, out-of-focus photo.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "City Hardware",
+      "purchase_date": "2026-09-27",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Wood screws 100pk",
+          "amount": "7.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Paint roller",
+          "amount": "8.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Tape",
+          "amount": "4.29",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "20.77",
+      "tax": "1.45",
+      "tip": null,
+      "total": "22.22",
+      "payment_method": "Visa ending 7731"
+    }
+  },
+  {
+    "id": "faded_thermal",
+    "file": "faded_thermal.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Faded thermal paper with low-contrast gray print.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "QuickStop Fuel",
+      "purchase_date": "2026-10-11",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Unleaded",
+          "amount": "36.36",
+          "quantity": "10.512",
+          "unit_price": "3.459"
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": null,
+      "total": "36.36",
+      "payment_method": "Visa ending 2208"
+    }
+  },
+  {
+    "id": "shadowed_photo",
+    "file": "shadowed_photo.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Uneven lighting: one side of the photo is in shadow.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Noodle House",
+      "purchase_date": "2026-09-03",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Spicy beef noodles",
+          "amount": "15.50",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Pork dumplings",
+          "amount": "8.00",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "23.50",
+      "tax": "2.06",
+      "tip": null,
+      "total": "25.56",
+      "payment_method": "Visa ending 4242"
+    }
+  },
+  {
+    "id": "long_receipt",
+    "file": "long_receipt.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "16 line items, including the same item twice.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Fresh Mart",
+      "purchase_date": "2026-10-16",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Apples 3lb bag",
+          "amount": "4.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Carrots",
+          "amount": "1.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Chicken thighs",
+          "amount": "8.72",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Brown rice",
+          "amount": "3.29",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Black beans",
+          "amount": "1.19",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Black beans",
+          "amount": "1.19",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Greek yogurt",
+          "amount": "5.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Cheddar block",
+          "amount": "4.79",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Tortillas",
+          "amount": "3.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Salsa",
+          "amount": "3.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Coffee beans",
+          "amount": "11.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Paper towels",
+          "amount": "8.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Olive oil",
+          "amount": "9.49",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Lemons",
+          "amount": "2.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Pasta",
+          "amount": "1.79",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Tomato sauce",
+          "amount": "2.49",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "75.38",
+      "tax": "0.63",
+      "tip": null,
+      "total": "76.01",
+      "payment_method": "Visa ending 4242"
+    }
+  },
+  {
+    "id": "written_month_date",
+    "file": "written_month_date.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Date written as 'Sat, Sep 5 2026'; payment via a wallet.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Starlight Cinema",
+      "purchase_date": "2026-09-05",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Adult ticket",
+          "amount": "28.00",
+          "quantity": "2",
+          "unit_price": "14.00"
+        },
+        {
+          "description": "Large popcorn",
+          "amount": "8.50",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "36.50",
+      "tax": "1.83",
+      "tip": null,
+      "total": "38.33",
+      "payment_method": "Visa ending 0044"
+    }
+  },
+  {
+    "id": "no_currency_symbol",
+    "file": "no_currency_symbol.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "No currency symbol or code anywhere, so currency must be null, not guessed.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Village Bakery",
+      "purchase_date": "2026-10-14",
+      "currency": null,
+      "line_items": [
+        {
+          "description": "Rye loaf",
+          "amount": "6.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Cinnamon roll",
+          "amount": "3.75",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Baguette",
+          "amount": "3.25",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": null,
+      "total": "13.00",
+      "payment_method": "Cash"
+    }
+  },
+  {
+    "id": "misprinted_total",
+    "file": "misprinted_total.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "The printed total is wrong. It must be copied as printed (not fixed) and get flagged.",
+    "expect_flagged": true,
+    "expected": {
+      "vendor": "Siam Kitchen",
+      "purchase_date": "2026-10-07",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Pad thai",
+          "amount": "14.50",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Spring rolls",
+          "amount": "6.95",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Thai iced tea",
+          "amount": "4.75",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "26.20",
+      "tax": "2.10",
+      "tip": null,
+      "total": "31.37",
+      "payment_method": "Visa ending 4242"
+    }
+  },
+  {
+    "id": "cash_with_change",
+    "file": "cash_with_change.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "Cash payment: the $20.00 tendered and the change are not the total.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "El Camino Tacos",
+      "purchase_date": "2026-09-22",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Carnitas taco",
+          "amount": "9.00",
+          "quantity": "3",
+          "unit_price": "3.00"
+        },
+        {
+          "description": "Horchata",
+          "amount": "4.75",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": null,
+      "total": "13.75",
+      "payment_method": "Cash"
+    }
+  },
+  {
+    "id": "canadian_dollars",
+    "file": "canadian_dollars.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "'$' with 'CAD' printed means Canadian dollars, not USD.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Maple Market",
+      "purchase_date": "2026-10-05",
+      "currency": "CAD",
+      "line_items": [
+        {
+          "description": "Maple syrup 500ml",
+          "amount": "14.99",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Smoked salmon",
+          "amount": "12.49",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "27.48",
+      "tax": "3.57",
+      "tip": null,
+      "total": "31.05",
+      "payment_method": "Interac ending 3350"
+    }
+  },
+  {
+    "id": "no_date",
+    "file": "no_date.jpg",
+    "mime_type": "image/jpeg",
+    "tests": "No date printed: the date must be null (and the receipt flagged), not invented.",
+    "expect_flagged": true,
+    "expected": {
+      "vendor": "Rose Hill Farm",
+      "purchase_date": null,
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Jar of jam",
+          "amount": "8.00",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Goat cheese",
+          "amount": "7.00",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": null,
+      "total": "15.00",
+      "payment_method": "Cash"
+    }
+  },
+  {
+    "id": "utility_bill_pdf",
+    "file": "utility_bill_pdf.pdf",
+    "mime_type": "application/pdf",
+    "tests": "A scanned-style PDF invoice with a different layout from a till receipt.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "Brightline Electric",
+      "purchase_date": "2026-09-30",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Electricity usage 412 kWh",
+          "amount": "52.31",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Delivery charge",
+          "amount": "8.40",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": "60.71",
+      "tax": "3.65",
+      "tip": null,
+      "total": "64.36",
+      "payment_method": "Mastercard ending 5521"
+    }
+  },
+  {
+    "id": "ride_app_screenshot",
+    "file": "ride_app_screenshot.png",
+    "mime_type": "image/png",
+    "tests": "An app screenshot with the total at the top and a tip but no tax.",
+    "expect_flagged": false,
+    "expected": {
+      "vendor": "QuickRide",
+      "purchase_date": "2026-10-03",
+      "currency": "USD",
+      "line_items": [
+        {
+          "description": "Trip fare",
+          "amount": "18.40",
+          "quantity": null,
+          "unit_price": null
+        },
+        {
+          "description": "Booking fee",
+          "amount": "2.50",
+          "quantity": null,
+          "unit_price": null
+        }
+      ],
+      "subtotal": null,
+      "tax": null,
+      "tip": "4.00",
+      "total": "24.90",
+      "payment_method": "Visa ending 1881"
+    }
+  }
+]

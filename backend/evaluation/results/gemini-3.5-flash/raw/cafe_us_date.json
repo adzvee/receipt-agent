@@ -1,0 +1,24 @@
+{
+  "vendor": "CORNER CAFE",
+  "purchase_date": "2026-04-10",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Oat latte",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 5.25
+    },
+    {
+      "description": "Almond croissant",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 4.5
+    }
+  ],
+  "subtotal": 9.75,
+  "tax": 0.87,
+  "tip": null,
+  "total": 10.62,
+  "payment_method": "Mastercard ending 8810"
+}

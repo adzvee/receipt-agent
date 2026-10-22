@@ -1,0 +1,108 @@
+{
+  "vendor": "FRESH MART #112",
+  "purchase_date": "2026-10-16",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Apples 3lb bag",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 4.99
+    },
+    {
+      "description": "Carrots",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 1.49
+    },
+    {
+      "description": "Chicken thighs",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 8.72
+    },
+    {
+      "description": "Brown rice",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.29
+    },
+    {
+      "description": "Black beans",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 1.19
+    },
+    {
+      "description": "Black beans",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 1.19
+    },
+    {
+      "description": "Greek yogurt",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 5.49
+    },
+    {
+      "description": "Cheddar block",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 4.79
+    },
+    {
+      "description": "Tortillas",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.49
+    },
+    {
+      "description": "Salsa",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.99
+    },
+    {
+      "description": "Coffee beans",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 11.99
+    },
+    {
+      "description": "Paper towels",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 8.99
+    },
+    {
+      "description": "Olive oil",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 9.49
+    },
+    {
+      "description": "Lemons",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 2.0
+    },
+    {
+      "description": "Pasta",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 1.79
+    },
+    {
+      "description": "Tomato sauce",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 2.49
+    }
+  ],
+  "subtotal": 75.38,
+  "tax": 0.63,
+  "tip": null,
+  "total": 76.01,
+  "payment_method": "Visa ending 4242"
+}

@@ -1,0 +1,48 @@
+{
+  "vendor": "FRESH MART #112",
+  "purchase_date": "2026-09-12",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Bananas",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 1.29
+    },
+    {
+      "description": "Whole milk 1 gal",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 4.19
+    },
+    {
+      "description": "Sourdough bread",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 5.49
+    },
+    {
+      "description": "Eggs dozen",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.99
+    },
+    {
+      "description": "Spinach",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 2.99
+    },
+    {
+      "description": "Dish soap",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 3.79
+    }
+  ],
+  "subtotal": 21.74,
+  "tax": 0.27,
+  "tip": null,
+  "total": 22.01,
+  "payment_method": "Visa ending 4242"
+}

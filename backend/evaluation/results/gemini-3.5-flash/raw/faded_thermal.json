@@ -1,0 +1,18 @@
+{
+  "vendor": "QUICKSTOP FUEL",
+  "purchase_date": "2026-10-11",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Unleaded",
+      "quantity": 10.512,
+      "unit_price": 3.459,
+      "amount": 36.36
+    }
+  ],
+  "subtotal": null,
+  "tax": null,
+  "tip": null,
+  "total": 36.36,
+  "payment_method": "Visa ending 2208"
+}

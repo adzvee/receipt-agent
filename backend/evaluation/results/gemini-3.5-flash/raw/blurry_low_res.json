@@ -1,0 +1,30 @@
+{
+  "vendor": "CITY HARDWARE",
+  "purchase_date": "2026-09-27",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Wood screws 100pk",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 7.49
+    },
+    {
+      "description": "Paint roller",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 8.99
+    },
+    {
+      "description": "Tape",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 4.29
+    }
+  ],
+  "subtotal": 20.77,
+  "tax": 1.45,
+  "tip": null,
+  "total": 22.22,
+  "payment_method": "Visa ending 7731"
+}

@@ -1,0 +1,42 @@
+{
+  "vendor": "HOMEGOODS DEPOT",
+  "purchase_date": "2026-10-02",
+  "currency": "USD",
+  "line_items": [
+    {
+      "description": "Bath towel set",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 24.99
+    },
+    {
+      "description": "Storage bins 3pk",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 18.49
+    },
+    {
+      "description": "COUPON 20% TOWELS",
+      "quantity": null,
+      "unit_price": null,
+      "amount": -5.0
+    },
+    {
+      "description": "Desk lamp",
+      "quantity": null,
+      "unit_price": null,
+      "amount": 29.99
+    },
+    {
+      "description": "MEMBER SAVINGS",
+      "quantity": null,
+      "unit_price": null,
+      "amount": -2.5
+    }
+  ],
+  "subtotal": 65.97,
+  "tax": 4.29,
+  "tip": null,
+  "total": 70.26,
+  "payment_method": "Discover ending 9014"
+}
