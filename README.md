@@ -400,16 +400,3 @@ are committed, under `evaluation/results/wildreceipt/`.
 ran out after 12 of the 20 receipts, which scored 100% on every field (50/50 line items).
 The other 8 (including the hardest cases) weren't run: the WildReceipt evaluation above
 measures real-world accuracy instead, so the free quota goes there. [Latest report](backend/evaluation/results/gemini-3.5-flash/report.md).
-
-## Roadmap
-
-- [x] 1. Project setup
-- [x] 2. Upload + extraction (images, PDFs) with validation
-- [x] 3. Categorization, duplicate detection, anomaly flags
-- [x] 4. Q&A agent with read-only database tools
-- [x] 5. Email forwarding (Postmark inbound webhook)
-- [x] 6. Frontend: upload, list, flags, dashboard, chat
-- [x] 7. User accounts + demo account
-- [x] 8. Extraction evaluation script
-- [ ] 9. Deployment (Docker, Terraform, CD)
-- [ ] 10. Final README
