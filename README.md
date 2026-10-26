@@ -328,6 +328,40 @@ the app's validation flags exactly the receipts it should. Raw model answers are
 `evaluation/results/<model>/raw/`, so a run stopped by rate limits resumes where it left
 off, and the report is written to `evaluation/results/<model>/report.md`.
 
+### On real receipts: WildReceipt
+
+The fake set tests specific hard cases; [WildReceipt](https://arxiv.org/abs/2103.14470)
+(hosted by MMOCR) checks real-world photos. Its test split has 472 receipts, each labeled
+per text box (`Store_name_value`, `Date_value`, `Total_value`, ...). `evaluation/wildreceipt.py`
+joins each field's boxes in reading order into one expected value and normalizes it:
+
+- **Names** are compared ignoring case, spaces, and punctuation (the labels drop spaces:
+  `KOREANRESTAURANT`). A close spelling or one of several labeled boxes (logo and printed
+  name) counts, and the report shows how many matched exactly.
+- **Dates** become every date the label could mean: `05/02/18` is May 2 or Feb 5, and
+  either answer counts; `Aug15.2017`, `Jun17'13`, `0ct25'14` (OCR's zero for O) all parse.
+  The 8 labels with no year, a French month, or just a time aren't scored.
+- **Amounts** become numbers (`Eur154,40` = 154.40, `.26` = 0.26); a total labeled twice
+  collapses to one, and several tax lines may also be answered as their sum.
+
+Fields are scored only where WildReceipt labels them, and mistakes are sorted into types
+(missing, gave the subtotal instead, decimal point misplaced, one digit misread, day and
+month swapped, wrong year, ...). A label-perfect answer scores 100% on all 1,965 labeled
+fields, which checks the scoring itself. Address is labeled too but isn't scored: the
+extraction schema has no address field.
+
+```bash
+python -m evaluation.wildreceipt --download   # once, ~185 MB, into a gitignored folder
+python -m evaluation.wildreceipt              # a fixed sample of 100 test receipts
+python -m evaluation.wildreceipt --all        # all 472 (the 100 are its first 100)
+```
+
+It calls the extraction function directly (not the upload endpoint, so the app's daily
+limits don't apply), saves each answer as it arrives, and resumes where it stopped when the
+free tier's daily quota runs out. Images and raw answers (real receipts can show card
+digits) stay in the gitignored `evaluation/datasets/`; only the report and failure examples
+are committed, under `evaluation/results/wildreceipt/`.
+
 **Results (gemini-3.5-flash), partial:** the free tier's 20 requests/day ran out after
 12 of the 20 receipts. Those 12 scored 100% on every field (50/50 line items). The 8 not
 yet run include the hardest cases (misprinted total, no date, no currency symbol, cash

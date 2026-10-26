@@ -20,15 +20,12 @@ from datetime import date
 from pathlib import Path
 
 from app.config import get_settings
-from app.extraction import ExtractedReceipt, extract_receipt
-from app.llm import LLMClient, LLMError
+from app.llm import LLMClient
+from evaluation.extract_all import Job, extract_all
 from evaluation.samples import LABELS_FILE, SAMPLES_DIR
 from evaluation.scoring import FIELDS, FieldResult, ItemCounts, score_sample
 
 RESULTS_DIR = Path(__file__).parent / "results"
-
-# Two failures in a row usually means a quota or outage, not a problem with one receipt.
-MAX_FAILURES_IN_A_ROW = 2
 
 
 @dataclass
@@ -85,11 +82,6 @@ class Report:
         return "\n".join(lines) + "\n"
 
 
-def short_error(exc: Exception) -> str:
-    """The readable start of an error, without the provider's JSON details."""
-    return str(exc).split("{")[0].strip(" .")[:200]
-
-
 def percent(part: int, whole: int) -> str:
     return f"{100 * part / whole:.0f}%" if whole else "n/a"
 
@@ -118,40 +110,23 @@ def evaluate(
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = print,
 ) -> Report:
-    report = Report(model=model, today=today)
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    called_before = False
-    failures_in_a_row = 0
-
+    jobs = [Job(label["id"], samples_dir / label["file"], label["mime_type"]) for label in labels]
+    answers, errors = extract_all(
+        llm=llm,
+        jobs=jobs,
+        raw_dir=raw_dir,
+        refresh=refresh,
+        allow_calls=allow_calls,
+        delay_seconds=delay_seconds,
+        sleep=sleep,
+        log=log,
+    )
+    report = Report(model=model, today=today, errors=errors)
     for label in labels:
-        cached = raw_dir / f"{label['id']}.json"
-        if cached.exists() and not refresh:
-            extraction = ExtractedReceipt.model_validate_json(cached.read_text())
-        elif not allow_calls:
-            report.errors[label["id"]] = "no saved answer (run without --no-calls)"
-            continue
-        elif failures_in_a_row >= MAX_FAILURES_IN_A_ROW:
-            report.errors[label["id"]] = "not tried: stopped after repeated failures"
-            continue
-        else:
-            if called_before and delay_seconds:
-                sleep(delay_seconds)  # stay under the free tier's requests-per-minute limit
-            called_before = True
-            log(f"Extracting {label['id']}...")
-            data = (samples_dir / label["file"]).read_bytes()
-            try:
-                extraction = extract_receipt(llm, data, label["mime_type"])
-            except LLMError as exc:
-                failures_in_a_row += 1
-                report.errors[label["id"]] = short_error(exc)
-                log(f"  failed: {short_error(exc)}")
-                continue
-            failures_in_a_row = 0
-            cached.write_text(extraction.model_dump_json(indent=2) + "\n")
-
-        results, items = score_sample(label, extraction, today)
-        report.results[label["id"]] = results
-        report.items.append(items)
+        if label["id"] in answers:
+            results, items = score_sample(label, answers[label["id"]], today)
+            report.results[label["id"]] = results
+            report.items.append(items)
     return report
 
 

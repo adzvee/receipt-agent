@@ -31,3 +31,6 @@ dist/
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# Downloaded datasets (never commit their images)
+backend/evaluation/datasets/
