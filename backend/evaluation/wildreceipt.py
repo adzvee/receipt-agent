@@ -122,41 +122,74 @@ def normalize_name(text: str | None) -> str:
 
 
 AMOUNT_TOKEN = re.compile(r"(?<![\d.,])[.,]?\d[\d.,]*")
+CENTS = Decimal("0.01")
 
 
-def parse_amount(text: str) -> Decimal | None:
-    """The last number in a label, to the cent: "$1,360.00" -> 1360.00, "Eur154,40" ->
-    154.40, ".26" -> 0.26. None if there's no number."""
-    tokens = AMOUNT_TOKEN.findall(text)
-    if not tokens:
-        return None
-    token = tokens[-1].rstrip(".,")
+def _is_negative(text: str, start: int, end: int) -> bool:
+    """A minus sign before ("-$5.00") or after ("101.97-", common on refunds) the number,
+    or accounting brackets ("(5.00)")."""
+    before = re.sub(r"[\s$£€¥₹A-Za-z]", "", text[:start])
+    after = text[end:].lstrip()
+    leading_minus = re.search(r"(^|\D)-$", before)  # not "07-12": a hyphen between numbers
+    return (
+        bool(leading_minus)
+        or after.startswith("-")
+        or (before.endswith("(") and after.startswith(")"))
+    )
+
+
+def amount_readings(text: str) -> set[Decimal]:
+    """Every amount the last number in a label could mean, to the cent: "$1,360.00" ->
+    {1360.00}, "Eur154,40" -> {154.40}, "101.97-" -> {-101.97}. A single dot before
+    exactly three digits is ambiguous: "170.000" is 170,000 in Indonesia but could be a
+    three-decimal currency, so both readings are returned. Empty if there's no number."""
+    matches = list(AMOUNT_TOKEN.finditer(text))
+    if not matches:
+        return set()
+    match = matches[-1]
+    token = match.group().rstrip(".,")
+    sign = -1 if _is_negative(text, match.start(), match.end()) else 1
     if token[0] in ".,":  # ".26"
         token = "0." + token[1:]
+    readings = []
     if "," in token and "." in token:  # the later one is the decimal separator
         decimal_sep = "," if token.rfind(",") > token.rfind(".") else "."
-        token = token.replace("." if decimal_sep == "," else ",", "").replace(",", ".")
+        readings.append(token.replace("." if decimal_sep == "," else ",", "").replace(",", "."))
     elif "," in token:  # "154,40" is a decimal comma; "1,360" separates thousands
         whole, _, fraction = token.rpartition(",")
         if len(fraction) == 2:
-            token = f"{whole.replace(',', '')}.{fraction}"
+            readings.append(f"{whole.replace(',', '')}.{fraction}")
         else:
-            token = token.replace(",", "")
+            readings.append(token.replace(",", ""))
     elif token.count(".") > 1:  # "1.360.00"
         whole, _, fraction = token.rpartition(".")
-        token = f"{whole.replace('.', '')}.{fraction}"
-    try:
-        return Decimal(token).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    except InvalidOperation:
-        return None
+        readings.append(f"{whole.replace('.', '')}.{fraction}")
+    else:
+        readings.append(token)
+        if re.fullmatch(r"\d+\.\d{3}", token):  # "170.000": also 170,000
+            readings.append(token.replace(".", ""))
+    amounts = set()
+    for reading in readings:
+        try:
+            amounts.add(sign * Decimal(reading).quantize(CENTS, rounding=ROUND_HALF_UP))
+        except InvalidOperation:
+            continue
+    return amounts
+
+
+def parse_amount(text: str) -> Decimal | None:
+    """The main reading of a label's amount (see `amount_readings`), or None."""
+    readings = amount_readings(text)
+    return min(readings, key=abs) if readings else None
 
 
 def amount_candidates(field_name: str, texts: list[str]) -> set[Decimal]:
     """Every amount the label could mean. Repeated boxes (a total printed twice) collapse;
     for tax, several tax lines may also be reported as their sum."""
-    amounts = {a for a in map(parse_amount, texts) if a is not None}
-    if field_name == "tax" and len(amounts) > 1:
-        amounts.add(sum(amounts, Decimal("0")))
+    amounts = set().union(*(amount_readings(t) for t in texts))
+    distinct = {a for a in map(parse_amount, texts) if a is not None}
+    if field_name == "tax" and len(distinct) > 1:
+        amounts.add(sum(distinct, Decimal("0")))
     return amounts
 
 
@@ -345,13 +378,13 @@ class Outcome:
 
 def names_match_closely(got: str, texts: list[str]) -> bool:
     """Lenient store-name match: a label box on its own, a close spelling, or one name
-    containing the other ("TRADERJOES" in "TRADERJOES552")."""
+    containing the other ("ROSS" in "ROSSDRESSFORLESS")."""
     candidates = [normalize_name("".join(texts)), *map(normalize_name, texts)]
     for want in filter(None, candidates):
         shorter, longer = sorted([got, want], key=len)
         if got == want or SequenceMatcher(None, got, want).ratio() >= 0.8:
             return True
-        if len(shorter) >= 5 and shorter in longer:
+        if len(shorter) >= 4 and shorter in longer:
             return True
     return False
 

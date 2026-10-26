@@ -12,6 +12,7 @@ from app.llm import LLMError, TokenUsage
 from evaluation.wildreceipt import (
     LabeledReceipt,
     amount_candidates,
+    amount_readings,
     date_candidates,
     date_order,
     evaluate,
@@ -132,12 +133,21 @@ def test_date_labels_become_every_date_they_could_mean(text, dates):
         (".26", "0.26"),
         ("1,360.00", "1360.00"),
         ("1.360,00", "1360.00"),
-        ("19.729", "19.73"),
         ("TOTAL", None),
+        ("101.97-", "-101.97"),  # refunds print the minus sign after
+        ("-$5.00", "-5.00"),
+        ("(5.00)", "-5.00"),
+        ("07-12", "12.00"),  # a hyphen between numbers isn't a minus sign
     ],
 )
 def test_amount_labels_are_normalized(text, amount):
     assert parse_amount(text) == (Decimal(amount) if amount else None)
+
+
+def test_a_dot_before_three_digits_can_be_thousands_or_decimals():
+    assert amount_readings("170.000") == {Decimal("170.00"), Decimal("170000.00")}
+    assert amount_readings("19.729") == {Decimal("19.73"), Decimal("19729.00")}
+    assert amount_readings("1,360.00") == {Decimal("1360.00")}  # unambiguous
 
 
 def test_an_ambiguous_date_can_be_read_in_one_order():
@@ -400,3 +410,19 @@ def test_token_usage_is_saved_and_totaled_across_resumed_runs(tmp_path):
     assert report.receipts_with_usage == 3  # 1 saved earlier + 2 now
     assert report.usage == TokenUsage(3000, 300, 120)
     assert "3,000 input, 300 output (of which 120 thinking), 3,300 total" in report.to_markdown()
+
+
+def test_short_store_name_inside_the_full_name_is_close():
+    result = outcome(
+        receipt(store_name=["ROSS"]), answer(vendor="ROSS DRESS FOR LESS"), "store_name"
+    )
+
+    assert result.correct and result.note == "close match"
+
+
+def test_refund_amounts_keep_their_sign():
+    labeled = receipt(subtotal=["101.97-"], total=["108.85-", "$108.85-"])
+
+    assert outcome(labeled, answer(subtotal=-101.97, total=-108.85), "subtotal").correct
+    assert outcome(labeled, answer(subtotal=-101.97, total=-108.85), "total").correct
+    assert not outcome(labeled, answer(subtotal=101.97), "subtotal").correct

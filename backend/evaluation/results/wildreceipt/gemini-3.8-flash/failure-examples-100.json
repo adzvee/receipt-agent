@@ -1,0 +1,173 @@
+[
+  {
+    "receipt_id": "27f879c6141f8b9dc861d7bffc933de8cd0ec6e1",
+    "field": "tax",
+    "correct": false,
+    "expected": "1.30 0.38",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "d9544f86929a619b45fc11338fa9df11fdb00905",
+    "field": "tax",
+    "correct": false,
+    "expected": "2.48 2.48",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "f7354af6e1d9858b92b3fab52676062dd5c11e91",
+    "field": "tax",
+    "correct": false,
+    "expected": "12.62 17.67",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "b56293eb365607660b541ddad8ff96b523044ecf",
+    "field": "store_name",
+    "correct": false,
+    "expected": "1E.MillsCircle",
+    "got": "COACH",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "2134",
+    "field": "store_name",
+    "correct": false,
+    "expected": "PMfarlia",
+    "got": "Pizza Hut Restaurants Sdn Bhd",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "0abd54c958f8658dac0ba32ee5ca8f8b264ce131",
+    "field": "store_name",
+    "correct": false,
+    "expected": "Janfe'sItallan",
+    "got": "Jamie's Italian",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "3755a671aa0c4daf0f4c523e23bc067d45dd4526",
+    "field": "total",
+    "correct": false,
+    "expected": "11.98",
+    "got": "12.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "4227",
+    "field": "total",
+    "correct": false,
+    "expected": "11.98",
+    "got": "12.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "828ed85f4e772a9f1c7036c98cd21ab47e59ce56",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "11.98",
+    "got": "11.99",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "dcff7be58f5c0252fb3c1e89e7602532cc372d79",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "$97.30",
+    "got": "87.30",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "565131355216578dd63083b0b93eacd70895b9e3",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "1.48",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "fda09a8db93c25ca6f9d837f659ddcbdb837b444",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "18.90",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "fda09a8db93c25ca6f9d837f659ddcbdb837b444",
+    "field": "date",
+    "correct": false,
+    "expected": "07-12-2017",
+    "got": "2017-07-13",
+    "error": "different date",
+    "note": "ambiguous, read month-first (North American phone number, US state + ZIP)"
+  },
+  {
+    "receipt_id": "0c0b19ea80a94e37a2d6eb53e5c2f8deb4d14606",
+    "field": "date",
+    "correct": false,
+    "expected": "18/09/2018",
+    "got": "2016-09-16",
+    "error": "different date",
+    "note": null
+  },
+  {
+    "receipt_id": "32b598f0501097e1c3e6e135018f021183a8fb33",
+    "field": "store_name",
+    "correct": false,
+    "expected": "DresserWayne",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "881976df4715d8e50c7a466be16e8556e37999d8",
+    "field": "store_name",
+    "correct": false,
+    "expected": "PROFORMA",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "c78135ef3a18896af46659abedc254ad1b5500ed",
+    "field": "tax",
+    "correct": false,
+    "expected": "8.59-A",
+    "got": "8.59",
+    "error": "decimal point misplaced",
+    "note": null
+  },
+  {
+    "receipt_id": "2134",
+    "field": "date",
+    "correct": false,
+    "expected": "07-27-2005",
+    "got": "2009-07-27",
+    "error": "wrong year",
+    "note": null
+  },
+  {
+    "receipt_id": "89ac29dbd20a93ca40d58942b23f86a7d11e2631",
+    "field": "tax",
+    "correct": false,
+    "expected": "-50.00",
+    "got": "0.00",
+    "error": "different amount",
+    "note": null
+  }
+]
