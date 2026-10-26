@@ -338,15 +338,20 @@ joins each field's boxes in reading order into one expected value and normalizes
 - **Names** are compared ignoring case, spaces, and punctuation (the labels drop spaces:
   `KOREANRESTAURANT`). A close spelling or one of several labeled boxes (logo and printed
   name) counts, and the report shows how many matched exactly.
-- **Dates** become every date the label could mean: `05/02/18` is May 2 or Feb 5, and
-  either answer counts; `Aug15.2017`, `Jun17'13`, `0ct25'14` (OCR's zero for O) all parse.
-  The 8 labels with no year, a French month, or just a time aren't scored.
+- **Dates** are parsed from many formats (`Aug15.2017`, `Jun17'13`, `0ct25'14` with OCR's
+  zero for O). An ambiguous one like `05/02/18` is read in the order used by the
+  receipt's country, worked out from clear clues in its labeled text: a US state and ZIP
+  or a North American phone number (month first); a UK postcode, Australian state,
+  international phone code, or £/€/₹/RM/VAT (day first). Canada uses both orders, so a
+  Canadian clue settles nothing. With no clear clue (36 of the 124 ambiguous dates in the
+  test split) or conflicting clues, the date is left out of the score and counted in the
+  report, as are the 8 labels with no year, a French month, or just a time.
 - **Amounts** become numbers (`Eur154,40` = 154.40, `.26` = 0.26); a total labeled twice
   collapses to one, and several tax lines may also be answered as their sum.
 
 Fields are scored only where WildReceipt labels them, and mistakes are sorted into types
 (missing, gave the subtotal instead, decimal point misplaced, one digit misread, day and
-month swapped, wrong year, ...). A label-perfect answer scores 100% on all 1,965 labeled
+month swapped, wrong year, ...). A label-perfect answer scores 100% on all 1,926 scored
 fields, which checks the scoring itself. Address is labeled too but isn't scored: the
 extraction schema has no address field.
 
@@ -362,11 +367,10 @@ free tier's daily quota runs out. Images and raw answers (real receipts can show
 digits) stay in the gitignored `evaluation/datasets/`; only the report and failure examples
 are committed, under `evaluation/results/wildreceipt/`.
 
-**Results (gemini-3.5-flash), partial:** the free tier's 20 requests/day ran out after
-12 of the 20 receipts. Those 12 scored 100% on every field (50/50 line items). The 8 not
-yet run include the hardest cases (misprinted total, no date, no currency symbol, cash
-with change, CAD, the PDF, the screenshot, and the shadowed photo), so this is not yet a
-fair headline number. [Latest report](backend/evaluation/results/gemini-3.5-flash/report.md).
+**Results on the fake set (gemini-3.5-flash), partial:** the free tier's 20 requests/day
+ran out after 12 of the 20 receipts, which scored 100% on every field (50/50 line items).
+The other 8 (including the hardest cases) weren't run: the WildReceipt evaluation above
+measures real-world accuracy instead, so the free quota goes there. [Latest report](backend/evaluation/results/gemini-3.5-flash/report.md).
 
 ## Demo
 

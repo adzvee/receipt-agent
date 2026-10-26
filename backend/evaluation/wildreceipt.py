@@ -47,7 +47,16 @@ SAMPLE_SEED = "wildreceipt-eval"  # fixes the order, so the first 100 are part o
 
 # WildReceipt class ids (class_list.txt) for the values we score. Address is labeled too,
 # but the extraction schema has no address field.
-LABEL_CLASSES = {1: "store_name", 7: "date", 17: "subtotal", 19: "tax", 21: "tip", 23: "total"}
+LABEL_CLASSES = {
+    1: "store_name",
+    3: "address",  # not scored; used to work out the country (see `date_order`)
+    5: "phone",  # likewise
+    7: "date",
+    17: "subtotal",
+    19: "tax",
+    21: "tip",
+    23: "total",
+}
 AMOUNT_FIELDS = ["total", "subtotal", "tax", "tip"]
 FIELDS = ["store_name", "date", *AMOUNT_FIELDS]
 FIELD_NAMES = {"store_name": "store name"}
@@ -60,6 +69,7 @@ class LabeledReceipt:
     id: str  # the image's file name without extension (a content hash)
     image: Path
     boxes: dict[str, list[str]]  # field -> label texts, in reading order
+    all_text: tuple[str, ...] = ()  # every box, for currency clues
 
 
 def reading_order(annotation: dict) -> tuple[int, float]:
@@ -77,7 +87,8 @@ def parse_label_line(line: str, dataset_dir: Path = DATASET_DIR) -> LabeledRecei
         if name and annotation["text"].strip():
             boxes[name].append(annotation["text"].strip())
     image = dataset_dir / record["file_name"]
-    return LabeledReceipt(id=image.stem, image=image, boxes=dict(boxes))
+    all_text = tuple(a["text"] for a in record["annotations"])
+    return LabeledReceipt(id=image.stem, image=image, boxes=dict(boxes), all_text=all_text)
 
 
 def load_test_set(dataset_dir: Path = DATASET_DIR) -> list[LabeledReceipt]:
@@ -188,9 +199,10 @@ def _valid(year: int, month: int, day: int) -> date | None:
         return None
 
 
-def date_candidates(text: str) -> set[date]:
+def date_candidates(text: str, order: str | None = None) -> set[date]:
     """Every date a label could mean. "12/30/2016FRI" -> {2016-12-30}; the ambiguous
-    "05/02/18" -> {2018-05-02, 2018-02-05}."""
+    "05/02/18" -> {2018-05-02, 2018-02-05}, or just one of them when `order` is
+    "month_first" or "day_first"."""
     upper = text.upper()
     found: set[date | None] = set()
     for kind, pattern in DATE_PATTERNS:
@@ -204,11 +216,117 @@ def date_candidates(text: str) -> set[date]:
                 found.add(_valid(_year(groups[2]), _month(groups[0]), int(groups[1])))
             else:
                 a, b, year = int(groups[0]), int(groups[1]), _year(groups[2])
-                found.add(_valid(year, a, b))  # month first (US)
-                found.add(_valid(year, b, a))  # day first
+                if order != "day_first":
+                    found.add(_valid(year, a, b))  # month first (US)
+                if order != "month_first":
+                    found.add(_valid(year, b, a))  # day first
         if found - {None}:
             break  # use the most specific pattern that matched
     return {d for d in found if d is not None}
+
+
+# --- Which way round is the date? ---
+# An ambiguous date like 05/02/18 is May 2 in the US but 5 February in most other places.
+# We look for clear clues to the country in the receipt's labeled text (never the model's
+# answer). Canada uses both orders, so a Canadian clue settles nothing.
+
+MONTH_FIRST, DAY_FIRST, EITHER = "month_first", "day_first", "either"
+
+US_STATES = (
+    "AL|AK|AZ|AR|CA|CO|CT|DC|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|"
+    "NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|"
+    "ALABAMA|ALASKA|ARIZONA|ARKANSAS|CALIFORNIA|COLORADO|CONNECTICUT|DELAWARE|FLORIDA|"
+    "GEORGIA|HAWAII|IDAHO|ILLINOIS|INDIANA|IOWA|KANSAS|KENTUCKY|LOUISIANA|MAINE|MARYLAND|"
+    "MASSACHUSETTS|MICHIGAN|MINNESOTA|MISSISSIPPI|MISSOURI|MONTANA|NEBRASKA|NEVADA|"
+    "NEWHAMPSHIRE|NEWJERSEY|NEWMEXICO|NEWYORK|NORTHCAROLINA|NORTHDAKOTA|OHIO|OKLAHOMA|"
+    "OREGON|PENNSYLVANIA|RHODEISLAND|SOUTHCAROLINA|SOUTHDAKOTA|TENNESSEE|TEXAS|UTAH|"
+    "VERMONT|VIRGINIA|WASHINGTON|WESTVIRGINIA|WISCONSIN|WYOMING"
+)
+CANADIAN_AREA_CODES = {
+    "204", "226", "236", "249", "250", "263", "289", "306", "343", "354", "365", "367",
+    "368", "382", "403", "416", "418", "428", "431", "437", "438", "450", "468", "474",
+    "506", "514", "519", "548", "579", "581", "584", "587", "604", "613", "639", "647",
+    "672", "683", "705", "709", "742", "753", "778", "780", "782", "807", "819", "825",
+    "867", "873", "879", "902", "905",
+}  # fmt: skip
+
+# (pattern, order, clue) checked against the address and store name, spaces removed.
+ADDRESS_CLUES = [
+    (re.compile(rf"({US_STATES})[,.]?\d{{5}}(-\d{{4}})?(?!\d)"), MONTH_FIRST, "US state + ZIP"),
+    (re.compile(r"(^|[^A-Z])USA([^A-Z]|$)|UNITEDSTATES"), MONTH_FIRST, "USA"),
+    (re.compile(r"(NSW|VIC|QLD|TAS|ACT|WA|SA|NT)[,.]?\d{4}(?!\d)"), DAY_FIRST, "Australian state"),
+    (re.compile(r"[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$"), DAY_FIRST, "UK postcode"),
+    (re.compile(r"[A-Z]\d[A-Z]\d[A-Z]\d$|CANADA"), EITHER, "Canada"),
+    (
+        re.compile(
+            r"UNITEDKINGDOM|AUSTRALIA|NEWZEALAND|IRELAND|SINGAPORE|MALAYSIA|HONGKONG|"
+            r"DUBAI|EMIRATES|ABUDHABI|INDIA(?!NA)"
+        ),
+        DAY_FIRST,
+        "country or city name",
+    ),
+]
+# Checked against every box: amounts show the currency. Letter codes only count on their
+# own or right next to a number ("EUR154,40", "12.00CAD"); inside words they're noise
+# ("AVOCADO", "COEURD'ALENE", "AUDUBON").
+
+
+def currency_code(codes: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?<![A-Z])({codes})(?![A-Z])|(?<![A-Z])({codes})\s*\d|\d\s*({codes})(?![A-Z])"
+    )
+
+
+CURRENCY_CLUES = [
+    (re.compile(r"[£€₹]|(?<![A-Z])VAT(?![A-Z])"), DAY_FIRST, "currency or VAT"),
+    (currency_code(r"GBP|EUR|EUROS?|INR|RS\.?|RM|AED|SGD|S\$|AUD|A\$|NZD"), DAY_FIRST,
+     "currency or VAT"),
+    (currency_code(r"CAD|C\$|HST"), EITHER, "Canadian currency or tax"),
+]  # fmt: skip
+INTERNATIONAL_PHONE = re.compile(r"^\+(44|61|64|65|60|91|353|971|852)")  # UK, AU, NZ, SG, ...
+
+
+def phone_clue(text: str) -> tuple[str, str] | None:
+    compact = re.sub(r"[^\d+]", "", text)
+    if INTERNATIONAL_PHONE.match(compact):
+        return DAY_FIRST, "international phone code"
+    digits = compact.removeprefix("+").removeprefix("1") if compact.startswith("+1") else compact
+    # North American 3-3-4, e.g. (714)879-3574 or 770-979-4200
+    north_american_format = re.search(r"\d{3}\)?[-.\s]?\d{3}-\d{4}", text)
+    if re.fullmatch(r"[2-9]\d{2}[2-9]\d{6}", digits) and north_american_format:
+        if digits[:3] in CANADIAN_AREA_CODES:
+            return EITHER, "Canadian phone number"
+        return MONTH_FIRST, "North American phone number"
+    return None
+
+
+def date_order(receipt: LabeledReceipt) -> tuple[str | None, str]:
+    """(MONTH_FIRST or DAY_FIRST or None, why). None when there's no clear clue, or the
+    clues disagree, or the receipt could be Canadian."""
+    clues: dict[str, set[str]] = defaultdict(set)  # order -> clue names
+    place_texts = receipt.boxes.get("address", []) + receipt.boxes.get("store_name", [])
+    for text in place_texts:
+        compact = re.sub(r"\s", "", text.upper())
+        for pattern, order, clue in ADDRESS_CLUES:
+            if pattern.search(compact):
+                clues[order].add(clue)
+    for text in receipt.boxes.get("phone", []) + receipt.boxes.get("address", []):
+        found = phone_clue(text)
+        if found:
+            clues[found[0]].add(found[1])
+    for text in receipt.all_text:
+        for pattern, order, clue in CURRENCY_CLUES:
+            if pattern.search(text.upper()):
+                clues[order].add(clue)
+
+    if not clues:
+        return None, "no country clue"
+    if EITHER in clues:
+        return None, "could be Canadian"
+    if len(clues) > 1:
+        return None, "clues disagree"
+    order = next(iter(clues))
+    return order, ", ".join(sorted(clues[order]))
 
 
 # --- Scoring ---
@@ -249,12 +367,9 @@ def score_store_name(receipt_id: str, texts: list[str], got: str | None) -> Outc
     return Outcome(receipt_id, "store_name", False, joined, got, "different name")
 
 
-def score_date(receipt_id: str, texts: list[str], got: str | None) -> Outcome | None:
-    candidates = set().union(*(date_candidates(t) for t in texts))
-    joined = " ".join(texts)
-    if not candidates:
-        return None  # a label we can't read, e.g. "FRI"; reported separately
-    note = "ambiguous date" if len(candidates) > 1 else None
+def score_date(
+    receipt_id: str, joined: str, candidates: set[date], got: str | None, note: str | None
+) -> Outcome:
     if got is None:
         return Outcome(receipt_id, "date", False, joined, got, "missing", note)
     predicted = parse_date(got)
@@ -317,18 +432,29 @@ def score_amount(
 def score_receipt(
     receipt: LabeledReceipt, answer: ExtractedReceipt
 ) -> tuple[list[Outcome], list[str]]:
-    """(outcomes for each labeled field, fields whose label couldn't be read)."""
+    """(outcomes for each labeled field, why any labeled fields weren't scored)."""
     outcomes: list[Outcome] = []
-    unreadable: list[str] = []
+    skipped: list[str] = []
     boxes = receipt.boxes
     if "store_name" in boxes:
         outcomes.append(score_store_name(receipt.id, boxes["store_name"], answer.vendor))
     if "date" in boxes:
-        outcome = score_date(receipt.id, boxes["date"], answer.purchase_date)
-        if outcome:
-            outcomes.append(outcome)
-        else:
-            unreadable.append("date")
+        texts = boxes["date"]
+        candidates = set().union(*(date_candidates(t) for t in texts))
+        note = None
+        if len(candidates) > 1:  # e.g. 05/02/18: use the receipt's country, if clear
+            order, why = date_order(receipt)
+            if order is None:
+                skipped.append(f"date: ambiguous, {why}")
+                candidates = set()
+            else:
+                candidates = set().union(*(date_candidates(t, order) for t in texts))
+                note = f"ambiguous, read {order.replace('_', '-')} ({why})"
+        elif not candidates:
+            skipped.append("date: label has no full date")
+        if candidates:
+            joined = " ".join(texts)
+            outcomes.append(score_date(receipt.id, joined, candidates, answer.purchase_date, note))
 
     amounts = {f: amount_candidates(f, boxes[f]) for f in AMOUNT_FIELDS if f in boxes}
     for name in AMOUNT_FIELDS:
@@ -339,8 +465,8 @@ def score_receipt(
         if outcome:
             outcomes.append(outcome)
         else:
-            unreadable.append(name)
-    return outcomes, unreadable
+            skipped.append(f"{name}: label has no amount")
+    return outcomes, skipped
 
 
 # --- Report ---
@@ -352,7 +478,7 @@ class Report:
     planned: int  # receipts in this run
     today: date
     outcomes: list[Outcome] = field(default_factory=list)
-    unreadable: Counter = field(default_factory=Counter)  # field -> labels we couldn't parse
+    skipped: Counter = field(default_factory=Counter)  # why labeled fields weren't scored
     scored_receipts: int = 0
     errors: dict[str, str] = field(default_factory=dict)
 
@@ -392,18 +518,27 @@ class Report:
             )
         stores = self.field_outcomes("store_name")
         exact = sum(o.correct and o.note is None for o in stores)
-        ambiguous = [o for o in self.field_outcomes("date") if o.note == "ambiguous date"]
+        dates = self.field_outcomes("date")
+        by_order = Counter(
+            "month-first" if "month-first" in o.note else "day-first"
+            for o in dates
+            if o.note and o.note.startswith("ambiguous")
+        )
+        left_out = sum(n for why, n in self.skipped.items() if why.startswith("date: ambiguous"))
         lines += [
             "",
             f"- Store names: {exact}/{len(stores)} ({percent(exact, len(stores))}) match the "
             "label exactly (ignoring case, spaces, punctuation); the rest of the correct ones "
             "are close matches (a typo, a branch number, or just one of the label's boxes).",
-            f"- {len(ambiguous)} dates could be read two ways (e.g. 05/02/18); either reading "
-            "counts as correct.",
+            f"- Ambiguous dates (like 05/02/18): {sum(by_order.values())} scored using the "
+            f"country shown by the receipt's address, phone, or currency "
+            f"({by_order['month-first']} month-first, {by_order['day-first']} day-first); "
+            f"**{left_out} left out** of the date score because the receipt has no clear "
+            "country clue.",
         ]
-        if self.unreadable:
-            parts = ", ".join(f"{n} {FIELD_NAMES.get(f, f)}" for f, n in self.unreadable.items())
-            lines.append(f"- Labels that couldn't be parsed, so weren't scored: {parts}.")
+        if self.skipped:
+            lines += ["", "Labeled fields not scored:", ""]
+            lines += [f"- {why}: {n}" for why, n in self.skipped.most_common()]
 
         lines += [
             "",
@@ -450,9 +585,9 @@ def evaluate(
     for receipt in receipts:
         if receipt.id not in answers:
             continue
-        outcomes, unreadable = score_receipt(receipt, answers[receipt.id])
+        outcomes, skipped = score_receipt(receipt, answers[receipt.id])
         report.outcomes += outcomes
-        report.unreadable.update(unreadable)
+        report.skipped.update(skipped)
         report.scored_receipts += 1
     return report
 

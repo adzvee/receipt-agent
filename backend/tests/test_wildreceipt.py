@@ -13,6 +13,7 @@ from evaluation.wildreceipt import (
     LabeledReceipt,
     amount_candidates,
     date_candidates,
+    date_order,
     evaluate,
     parse_amount,
     parse_label_line,
@@ -39,8 +40,8 @@ def label_line(file_name: str, *annotations: dict) -> str:
     )
 
 
-def receipt(**boxes: list[str]) -> LabeledReceipt:
-    return LabeledReceipt(id="r1", image=None, boxes=boxes)  # type: ignore[arg-type]
+def receipt(all_text: tuple[str, ...] = (), **boxes: list[str]) -> LabeledReceipt:
+    return LabeledReceipt(id="r1", image=None, boxes=boxes, all_text=all_text)  # type: ignore[arg-type]
 
 
 def answer(**fields) -> ExtractedReceipt:
@@ -81,6 +82,7 @@ def test_boxes_are_joined_per_field_in_reading_order(tmp_path):
     assert parsed.id == "abc123"
     assert parsed.image == tmp_path / "image_files/Image_1/0/abc123.jpeg"
     assert parsed.boxes == {"store_name": ["CHOEUN", "KOREANRESTAURANT"], "total": ["$38.77"]}
+    assert "$13.99" in parsed.all_text  # every box is kept for currency clues
 
 
 def test_sample_order_is_fixed_and_smaller_runs_are_a_prefix():
@@ -138,6 +140,11 @@ def test_amount_labels_are_normalized(text, amount):
     assert parse_amount(text) == (Decimal(amount) if amount else None)
 
 
+def test_an_ambiguous_date_can_be_read_in_one_order():
+    assert date_candidates("05/02/18", "month_first") == {date(2018, 5, 2)}
+    assert date_candidates("05/02/18", "day_first") == {date(2018, 2, 5)}
+
+
 def test_repeated_amount_boxes_collapse_and_tax_lines_may_be_summed():
     assert amount_candidates("total", ["$85.00", "$85.00"]) == {Decimal("85.00")}
     assert amount_candidates("tax", ["1.20", "0.30"]) == {
@@ -176,7 +183,6 @@ def test_a_different_store_name_is_wrong():
     ("label", "got", "correct", "error"),
     [
         ("12/30/2016", "2016-12-30", True, None),
-        ("05/02/18", "2018-02-05", True, None),  # ambiguous: either reading counts
         ("14/02/18", "2018-14-02", False, "not a valid date"),
         ("14/02/18", "2016-02-14", False, "wrong year"),
         ("12/30/2016", "2016-03-12", False, "different date"),
@@ -187,6 +193,70 @@ def test_dates(label, got, correct, error):
     result = outcome(receipt(date=[label]), answer(purchase_date=got), "date")
 
     assert (result.correct, result.error) == (correct, error)
+
+
+# --- Ambiguous dates: the receipt's country decides ---
+
+
+@pytest.mark.parametrize(
+    ("clues", "order", "why"),
+    [
+        ({"address": ["SNELLVILLE,GA30078"]}, "month_first", "US state + ZIP"),
+        ({"address": ["Coeurd'Alene,Idaho83814"]}, "month_first", "US state + ZIP"),
+        ({"phone": ["(714)879-3574"]}, "month_first", "North American phone number"),
+        ({"address": ["STRATHMOREVIC3041"]}, "day_first", "Australian state"),
+        ({"address": ["MorrisonsplcBD37DL"]}, "day_first", "UK postcode"),
+        ({"address": ["singapore079027"]}, "day_first", "country or city name"),
+        ({"phone": ["+6566046861"]}, "day_first", "international phone code"),
+        ({"all_text": ("£5.99",)}, "day_first", "currency or VAT"),
+        ({"all_text": ("Eur154,40",)}, "day_first", "currency or VAT"),
+        ({"all_text": ("Incl.VAT(20%):",)}, "day_first", "currency or VAT"),
+        ({"address": ["VANCOUVER,BCV6M1L1"]}, None, "could be Canadian"),
+        ({"phone": ["(416)555-0199"]}, None, "could be Canadian"),  # a Toronto area code
+        ({"address": ["NEWYORK,NY10019"], "all_text": ("£5.99",)}, None, "clues disagree"),
+        ({"address": ["KARLJOHANSGATE18c"]}, None, "no country clue"),
+    ],
+)
+def test_country_clues_decide_the_date_order(clues, order, why):
+    labeled = receipt(**clues)
+
+    assert date_order(labeled) == (order, why)
+
+
+@pytest.mark.parametrize(
+    "clues",
+    [
+        {"all_text": ("AVOCADOMOUSSE",)},  # "CAD" inside a word isn't Canadian dollars
+        {"all_text": ("Bone-inRibeye",)},  # nor is "INR" Indian rupees
+        {"address": ["Audubon,NJ08106"]},  # "AUD": still just New Jersey
+        {"address": ["Indianapolis,IN46204"]},  # "INDIA" inside INDIANA(POLIS)
+    ],
+)
+def test_lookalike_words_are_not_country_clues(clues):
+    order, _ = date_order(receipt(**clues))
+
+    assert order in (None, "month_first")  # never day-first or "could be Canadian"
+
+
+def test_ambiguous_date_is_scored_in_the_receipts_countrys_order():
+    us = receipt(date=["05/02/18"], address=["Seattle,WA98122"])
+    uk = receipt(date=["05/02/18"], all_text=("£12.00",))
+
+    assert outcome(us, answer(purchase_date="2018-05-02"), "date").correct
+    assert not outcome(us, answer(purchase_date="2018-02-05"), "date").correct
+    assert outcome(uk, answer(purchase_date="2018-02-05"), "date").correct
+    wrong = outcome(uk, answer(purchase_date="2018-05-02"), "date")
+    assert wrong.error == "day and month swapped"
+    assert wrong.note == "ambiguous, read day-first (currency or VAT)"
+
+
+def test_ambiguous_date_without_a_clear_country_is_left_out():
+    outcomes, skipped = score_receipt(
+        receipt(date=["05/02/18"]), answer(purchase_date="2018-05-02")
+    )
+
+    assert outcomes == []
+    assert skipped == ["date: ambiguous, no country clue"]
 
 
 def test_day_and_month_swapped_is_named():
@@ -216,17 +286,17 @@ def test_amount_errors_are_classified(got, error):
 
 
 def test_fields_without_a_label_are_not_scored():
-    outcomes, unreadable = score_receipt(receipt(total=["9.35"]), answer(total=9.35, tax=1.0))
+    outcomes, skipped = score_receipt(receipt(total=["9.35"]), answer(total=9.35, tax=1.0))
 
     assert [o.field for o in outcomes] == ["total"]
-    assert unreadable == []
+    assert skipped == []
 
 
 def test_unreadable_labels_are_reported_not_scored():
-    outcomes, unreadable = score_receipt(receipt(date=["Jun15"]), answer(purchase_date=None))
+    outcomes, skipped = score_receipt(receipt(date=["Jun15"]), answer(purchase_date=None))
 
     assert outcomes == []
-    assert unreadable == ["date"]
+    assert skipped == ["date: label has no full date"]
 
 
 # --- Running, resuming, and the report ---
@@ -280,6 +350,20 @@ def test_report_has_accuracy_errors_and_examples(tmp_path):
     assert "| store name | 100% | 2/2 | 2 |" in markdown
     assert "| total | one digit misread | 1 |" in markdown
     assert "label `$8.37`, model `8.31`" in markdown
+
+
+def test_report_counts_ambiguous_dates_scored_and_left_out(tmp_path):
+    receipts = make_receipts(tmp_path, 2)
+    receipts[0].boxes.update(date=["05/02/18"], address=["Seattle,WA98122"])
+    receipts[1].boxes.update(date=["05/02/18"])  # no country clue
+    llm = ScriptedLLM([answer(purchase_date="2018-05-02")] * 2)
+
+    markdown = run(llm, receipts, tmp_path).to_markdown()
+
+    assert "| date | 100% | 1/1 | 1 |" in markdown
+    assert "1 scored using the country" in markdown and "(1 month-first, 0 day-first)" in markdown
+    assert "**1 left out**" in markdown
+    assert "- date: ambiguous, no country clue: 1" in markdown
 
 
 def test_a_run_stopped_by_the_quota_resumes_where_it_left_off(tmp_path):
