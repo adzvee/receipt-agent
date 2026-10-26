@@ -111,7 +111,7 @@ def evaluate(
     log: Callable[[str], None] = print,
 ) -> Report:
     jobs = [Job(label["id"], samples_dir / label["file"], label["mime_type"]) for label in labels]
-    answers, errors = extract_all(
+    extractions = extract_all(
         llm=llm,
         jobs=jobs,
         raw_dir=raw_dir,
@@ -121,7 +121,8 @@ def evaluate(
         sleep=sleep,
         log=log,
     )
-    report = Report(model=model, today=today, errors=errors)
+    answers = extractions.answers
+    report = Report(model=model, today=today, errors=extractions.errors)
     for label in labels:
         if label["id"] in answers:
             results, items = score_sample(label, answers[label["id"]], today)

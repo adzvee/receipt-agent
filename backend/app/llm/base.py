@@ -24,6 +24,22 @@ class LLMError(Exception):
     """Raised when the provider fails or returns output we can't use."""
 
 
+@dataclass(frozen=True)
+class TokenUsage:
+    """Tokens billed for one model call, as the provider reports them."""
+
+    input_tokens: int  # the prompt, including images
+    output_tokens: int  # the reply, including any thinking
+    thinking_tokens: int  # the part of output_tokens spent thinking
+
+    def __add__(self, other: "TokenUsage") -> "TokenUsage":
+        return TokenUsage(
+            self.input_tokens + other.input_tokens,
+            self.output_tokens + other.output_tokens,
+            self.thinking_tokens + other.thinking_tokens,
+        )
+
+
 # --- Tool calling ---
 
 

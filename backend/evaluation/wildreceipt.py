@@ -33,7 +33,7 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.extraction import ExtractedReceipt, money, parse_date
-from app.llm import LLMClient
+from app.llm import LLMClient, TokenUsage
 from evaluation.extract_all import Job, extract_all
 
 DATASET_URL = "https://download.openmmlab.com/mmocr/data/wildreceipt.tar"
@@ -481,6 +481,8 @@ class Report:
     skipped: Counter = field(default_factory=Counter)  # why labeled fields weren't scored
     scored_receipts: int = 0
     errors: dict[str, str] = field(default_factory=dict)
+    usage: TokenUsage = TokenUsage(0, 0, 0)
+    receipts_with_usage: int = 0
 
     def field_outcomes(self, name: str) -> list[Outcome]:
         return [o for o in self.outcomes if o.field == name]
@@ -536,6 +538,14 @@ class Report:
             f"**{left_out} left out** of the date score because the receipt has no clear "
             "country clue.",
         ]
+        if self.receipts_with_usage:
+            u = self.usage
+            lines.append(
+                f"- Tokens ({self.receipts_with_usage} receipts with recorded usage): "
+                f"{u.input_tokens:,} input, {u.output_tokens:,} output "
+                f"(of which {u.thinking_tokens:,} thinking), "
+                f"{u.input_tokens + u.output_tokens:,} total."
+            )
         if self.skipped:
             lines += ["", "Labeled fields not scored:", ""]
             lines += [f"- {why}: {n}" for why, n in self.skipped.most_common()]
@@ -580,8 +590,16 @@ def evaluate(
     **extract_options,
 ) -> Report:
     jobs = [Job(r.id, r.image, "image/jpeg") for r in receipts]
-    answers, errors = extract_all(llm=llm, jobs=jobs, raw_dir=raw_dir, **extract_options)
-    report = Report(model=model, planned=len(receipts), today=today, errors=errors)
+    extractions = extract_all(llm=llm, jobs=jobs, raw_dir=raw_dir, **extract_options)
+    answers = extractions.answers
+    report = Report(
+        model=model,
+        planned=len(receipts),
+        today=today,
+        errors=extractions.errors,
+        usage=extractions.total_usage(),
+        receipts_with_usage=len(extractions.usage),
+    )
     for receipt in receipts:
         if receipt.id not in answers:
             continue

@@ -2,6 +2,7 @@
 
 import logging
 import re
+import threading
 import time
 from collections.abc import Callable
 
@@ -16,6 +17,7 @@ from app.llm.base import (
     ChatMessage,
     LLMError,
     T,
+    TokenUsage,
     ToolCall,
     ToolResultMessage,
     ToolSpec,
@@ -59,6 +61,13 @@ class GeminiClient:
         self._timeout_seconds = timeout_seconds
         self._sleep = sleep  # injectable so tests don't actually wait
         self._client: genai.Client | None = None
+        # Per thread, because the app shares one client across request threads.
+        self._local = threading.local()
+
+    @property
+    def last_usage(self) -> TokenUsage | None:
+        """Tokens used by this thread's last successful call (e.g. for cost tracking)."""
+        return getattr(self._local, "usage", None)
 
     def _get_client(self) -> genai.Client:
         # Created lazily so the app can start (and tests can run) without an API key.
@@ -146,9 +155,11 @@ class GeminiClient:
         client = self._get_client()
         for attempt in range(1, self._max_attempts + 1):
             try:
-                return client.models.generate_content(
+                response = client.models.generate_content(
                     model=self._model, contents=contents, config=config
                 )
+                self._local.usage = _usage(response)
+                return response
             except errors.APIError as exc:
                 delay = self._retry_delay(exc, attempt)
                 if delay is None or attempt == self._max_attempts:
@@ -241,3 +252,17 @@ def _to_contents(messages: list[ChatMessage]) -> list[types.Content]:
                 else:
                     contents.append(types.Content(role="user", parts=[part]))
     return contents
+
+
+def _usage(response: types.GenerateContentResponse) -> TokenUsage | None:
+    """Token counts from the response. Gemini bills thinking tokens as output, but reports
+    them separately from the reply's own (candidates) tokens."""
+    meta = getattr(response, "usage_metadata", None)
+    if meta is None:
+        return None
+    thinking = meta.thoughts_token_count or 0
+    return TokenUsage(
+        input_tokens=meta.prompt_token_count or 0,
+        output_tokens=(meta.candidates_token_count or 0) + thinking,
+        thinking_tokens=thinking,
+    )

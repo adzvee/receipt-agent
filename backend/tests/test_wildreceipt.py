@@ -8,7 +8,7 @@ from decimal import Decimal
 import pytest
 
 from app.extraction import ExtractedReceipt
-from app.llm import LLMError
+from app.llm import LLMError, TokenUsage
 from evaluation.wildreceipt import (
     LabeledReceipt,
     amount_candidates,
@@ -382,3 +382,21 @@ def test_a_run_stopped_by_the_quota_resumes_where_it_left_off(tmp_path):
 
     assert second.calls == 3  # only the ones that were missing
     assert report.scored_receipts == 4 and not report.errors
+
+
+class MeteredLLM(ScriptedLLM):
+    """Reports 1,000 input and 100 output tokens per call, like Gemini's usage data."""
+
+    last_usage = TokenUsage(input_tokens=1000, output_tokens=100, thinking_tokens=40)
+
+
+def test_token_usage_is_saved_and_totaled_across_resumed_runs(tmp_path):
+    receipts = make_receipts(tmp_path, 3)
+    quota = LLMError("503 UNAVAILABLE")
+    run(MeteredLLM([answer(total=8.37), quota, quota]), receipts, tmp_path)
+
+    report = run(MeteredLLM([answer(total=8.37)] * 2), receipts, tmp_path)
+
+    assert report.receipts_with_usage == 3  # 1 saved earlier + 2 now
+    assert report.usage == TokenUsage(3000, 300, 120)
+    assert "3,000 input, 300 output (of which 120 thinking), 3,300 total" in report.to_markdown()

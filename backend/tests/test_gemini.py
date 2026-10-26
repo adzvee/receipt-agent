@@ -6,7 +6,7 @@ from google.genai import errors, types
 
 from app.agent.tools import TOOL_SPECS
 from app.extraction import ExtractedReceipt
-from app.llm import AssistantMessage, LLMError, ToolCall, ToolResultMessage, UserMessage
+from app.llm import AssistantMessage, LLMError, TokenUsage, ToolCall, ToolResultMessage, UserMessage
 from app.llm.gemini import GeminiClient, _to_contents, suggested_retry_delay
 from tests.factories import make_extracted_receipt
 
@@ -115,6 +115,24 @@ def test_suggested_retry_delay_parsing():
     assert suggested_retry_delay(api_error(429, retry_delay="1.5s")) == 1.5
     assert suggested_retry_delay(api_error(429, retry_delay="soon")) is None
     assert suggested_retry_delay(api_error(503)) is None
+
+
+def test_token_usage_of_the_last_call_is_recorded():
+    client, fake, _ = make_client([make_extracted_receipt()])
+    response = SimpleNamespace(
+        parsed=make_extracted_receipt(),
+        text=None,
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=1290, candidates_token_count=210, thoughts_token_count=400
+        ),
+    )
+    fake.generate_content = lambda **kwargs: response
+
+    extract(client)
+
+    assert client.last_usage == TokenUsage(
+        input_tokens=1290, output_tokens=610, thinking_tokens=400
+    )
 
 
 def test_requests_have_a_time_limit():
