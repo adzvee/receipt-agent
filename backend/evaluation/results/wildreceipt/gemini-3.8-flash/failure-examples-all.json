@@ -1,0 +1,407 @@
+[
+  {
+    "receipt_id": "27f879c6141f8b9dc861d7bffc933de8cd0ec6e1",
+    "field": "tax",
+    "correct": false,
+    "expected": "1.30 0.38",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "d9544f86929a619b45fc11338fa9df11fdb00905",
+    "field": "tax",
+    "correct": false,
+    "expected": "2.48 2.48",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "f7354af6e1d9858b92b3fab52676062dd5c11e91",
+    "field": "tax",
+    "correct": false,
+    "expected": "12.62 17.67",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "b56293eb365607660b541ddad8ff96b523044ecf",
+    "field": "store_name",
+    "correct": false,
+    "expected": "1E.MillsCircle",
+    "got": "COACH",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "2134",
+    "field": "store_name",
+    "correct": false,
+    "expected": "PMfarlia",
+    "got": "Pizza Hut Restaurants Sdn Bhd",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "0abd54c958f8658dac0ba32ee5ca8f8b264ce131",
+    "field": "store_name",
+    "correct": false,
+    "expected": "Janfe'sItallan",
+    "got": "Jamie's Italian",
+    "error": "different name",
+    "note": null
+  },
+  {
+    "receipt_id": "565131355216578dd63083b0b93eacd70895b9e3",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "1.48",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "fda09a8db93c25ca6f9d837f659ddcbdb837b444",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "18.90",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "ba4c7f3e98913e0dc79747a06c542351e7b0ca38",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "11,50 10,75",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "3755a671aa0c4daf0f4c523e23bc067d45dd4526",
+    "field": "total",
+    "correct": false,
+    "expected": "11.98",
+    "got": "12.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "4227",
+    "field": "total",
+    "correct": false,
+    "expected": "11.98",
+    "got": "12.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "15c0d4ff788941e37abbb8fc88106e813916561b",
+    "field": "total",
+    "correct": false,
+    "expected": "\u00a3136.5",
+    "got": "136.95",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "fda09a8db93c25ca6f9d837f659ddcbdb837b444",
+    "field": "date",
+    "correct": false,
+    "expected": "07-12-2017",
+    "got": "2017-07-13",
+    "error": "different date",
+    "note": "ambiguous, read month-first (North American phone number, US state + ZIP)"
+  },
+  {
+    "receipt_id": "0c0b19ea80a94e37a2d6eb53e5c2f8deb4d14606",
+    "field": "date",
+    "correct": false,
+    "expected": "18/09/2018",
+    "got": "2016-09-16",
+    "error": "different date",
+    "note": null
+  },
+  {
+    "receipt_id": "5953d9c8606a2d7b0e816d0310ce64894ed6f57e",
+    "field": "date",
+    "correct": false,
+    "expected": "DECEMBER2016",
+    "got": "2016-12-01",
+    "error": "different date",
+    "note": null
+  },
+  {
+    "receipt_id": "32b598f0501097e1c3e6e135018f021183a8fb33",
+    "field": "store_name",
+    "correct": false,
+    "expected": "DresserWayne",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "881976df4715d8e50c7a466be16e8556e37999d8",
+    "field": "store_name",
+    "correct": false,
+    "expected": "PROFORMA",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "a91821e592a9ffd7726279273977759fc027e9e9",
+    "field": "store_name",
+    "correct": false,
+    "expected": "BANCODEBOGOTABANCODEBOGOTA",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "89ac29dbd20a93ca40d58942b23f86a7d11e2631",
+    "field": "tax",
+    "correct": false,
+    "expected": "-50.00",
+    "got": "0.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "4f92cc1cb44e9f5e913cb14a5378f3ad4a6ff53c",
+    "field": "tax",
+    "correct": false,
+    "expected": "1.07VAT20%",
+    "got": "1.07",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "4833e1d8979fcda2d02ca7a5a9aec7df4879f933",
+    "field": "tax",
+    "correct": false,
+    "expected": "27.00 27.00",
+    "got": "54.00",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "8503b34e776ac42c1ac3f3daf314001a022d5737",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "49.25",
+    "got": "44.77",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "7dbaadf00dc8a89fee1aba485951146fb3730b41",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "$88.95",
+    "got": "97.62",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "17879e88d2ad235edc7238eb9a54be1c8c7b00c3",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "4,70",
+    "got": "4.27",
+    "error": "different amount",
+    "note": null
+  },
+  {
+    "receipt_id": "1d9b1fc7e0af78b4ed50a4ab0c853b98f2c2cd45",
+    "field": "tip",
+    "correct": false,
+    "expected": "$61.89 $64.58 $67.28 $8.07 $13.46 $10.76",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "db26cc8b43a2b4a02c7a340062a1573617b79b3e",
+    "field": "tip",
+    "correct": false,
+    "expected": "$5.57 $6.19 $4.64",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "92d2c3bd557d1d5e6b03ca24a28808c087ebc51b",
+    "field": "tip",
+    "correct": false,
+    "expected": "+9.50USD",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "828ed85f4e772a9f1c7036c98cd21ab47e59ce56",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "11.98",
+    "got": "11.99",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "dcff7be58f5c0252fb3c1e89e7602532cc372d79",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "$97.30",
+    "got": "87.30",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "96d516dd4639df54f79bc592c0aecb43357dd68d",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "\u00a315.35",
+    "got": "16.35",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "3455",
+    "field": "total",
+    "correct": false,
+    "expected": "$61.56 $61.56",
+    "got": "61.76",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "1265ac53a8adf66a8a7079678d9c38f540a7f5fa",
+    "field": "total",
+    "correct": false,
+    "expected": "$61.56",
+    "got": "61.76",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "4f92cc1cb44e9f5e913cb14a5378f3ad4a6ff53c",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "GBP5.33",
+    "got": "6.40",
+    "error": "gave the total instead",
+    "note": null
+  },
+  {
+    "receipt_id": "375ac92e91a434a100134c84c897d80b61836d36",
+    "field": "subtotal",
+    "correct": false,
+    "expected": "528.80",
+    "got": "661.00",
+    "error": "gave the total instead",
+    "note": null
+  },
+  {
+    "receipt_id": "abe4a99fc868a89ff0f574748d9bc12144eca345",
+    "field": "date",
+    "correct": false,
+    "expected": "06/08/2017",
+    "got": "2017-06-08",
+    "error": "day and month swapped",
+    "note": "ambiguous, read day-first (currency or VAT)"
+  },
+  {
+    "receipt_id": "46d65aed5ae6d58fe03da9c8ca9da66feb1ac994",
+    "field": "date",
+    "correct": false,
+    "expected": "06/02/2015 06/02/2015",
+    "got": "2015-02-06",
+    "error": "day and month swapped",
+    "note": "ambiguous, read month-first (US state + ZIP)"
+  },
+  {
+    "receipt_id": "a91821e592a9ffd7726279273977759fc027e9e9",
+    "field": "date",
+    "correct": false,
+    "expected": "NOV/25/2016 DIC/21/2016",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "2b99c1df5dd57ed754faa0617750dbb55ae884de",
+    "field": "date",
+    "correct": false,
+    "expected": "01/17/17",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "a91821e592a9ffd7726279273977759fc027e9e9",
+    "field": "total",
+    "correct": false,
+    "expected": "$1,400.00 $1,400.00",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "4f449bf99b3d1a2fd7b7a276236584986117f796",
+    "field": "total",
+    "correct": false,
+    "expected": "5.74",
+    "got": null,
+    "error": "missing",
+    "note": null
+  },
+  {
+    "receipt_id": "e000cbc415cba7bfe9465c0fc0858df6c7c1dcdf",
+    "field": "tax",
+    "correct": false,
+    "expected": "12.05",
+    "got": "12.06",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "3c610b660ee3c758e8f1cab3510ecbb90d5e23c4",
+    "field": "tax",
+    "correct": false,
+    "expected": "4.53",
+    "got": "1.53",
+    "error": "one digit misread",
+    "note": null
+  },
+  {
+    "receipt_id": "c78135ef3a18896af46659abedc254ad1b5500ed",
+    "field": "tax",
+    "correct": false,
+    "expected": "8.59-A",
+    "got": "8.59",
+    "error": "decimal point misplaced",
+    "note": null
+  },
+  {
+    "receipt_id": "2134",
+    "field": "date",
+    "correct": false,
+    "expected": "07-27-2005",
+    "got": "2009-07-27",
+    "error": "wrong year",
+    "note": null
+  },
+  {
+    "receipt_id": "f7a60a9b2fc22af4848518aa27fc23c5b26f7be2",
+    "field": "tip",
+    "correct": false,
+    "expected": "$14:20",
+    "got": "16.70",
+    "error": "different amount",
+    "note": null
+  }
+]

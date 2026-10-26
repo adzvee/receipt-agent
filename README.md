@@ -367,6 +367,34 @@ free tier's daily quota runs out. Images and raw answers (real receipts can show
 digits) stay in the gitignored `evaluation/datasets/`; only the report and failure examples
 are committed, under `evaluation/results/wildreceipt/`.
 
+**Results: gemini-3.8-flash on all 472 WildReceipt test receipts** (October 2026,
+[full report](backend/evaluation/results/wildreceipt/gemini-3.8-flash/report-all.md)):
+
+| Field | Accuracy | Correct / labeled |
+| --- | ---: | ---: |
+| Store name (exact, ignoring case/spaces/punctuation) | 66% | 312 / 472 |
+| Store name (exact or close) | 96% | 455 / 472 |
+| Date | 97% | 341 / 351 |
+| Total | 97% | 410 / 422 |
+| Subtotal | 94% | 322 / 342 |
+| Tax | 90% | 286 / 318 |
+| Tip | 76% | 16 / 21 |
+
+- The most common mistake is **leaving tax empty** (25 receipts), often where the
+  receipt lists several tax lines; then store names that differ from the label (13,
+  some of them label errors, such as an address labeled as the store name) and a
+  missing subtotal (11). Misread digits and swapped day/month are rare (2–3 each).
+- 85 ambiguous dates were scored in their country's order (57 month-first, 28
+  day-first); 39 were left out for lack of a clear country clue, and 8 labels have no
+  full date.
+- No request failed. The run used 1.14M tokens (609k input, 534k output, of which 424k
+  were the model's thinking): about $2.46 at the October 2026 list price ($0.75 / $3.75
+  per million input / output tokens), or roughly half a cent per receipt.
+- Reading the first 100 results turned up three scoring bugs, all cases where the model
+  was right: refunds printed `101.97-`, `170.000` meaning 170,000, and a short store
+  name inside the full one (`ROSS` in `ROSS DRESS FOR LESS`). The parser handles them
+  now, with tests.
+
 **Results on the fake set (gemini-3.5-flash), partial:** the free tier's 20 requests/day
 ran out after 12 of the 20 receipts, which scored 100% on every field (50/50 line items).
 The other 8 (including the hardest cases) weren't run: the WildReceipt evaluation above
