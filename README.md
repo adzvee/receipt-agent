@@ -9,11 +9,14 @@ expense, flags duplicates and unusual charges, and answers questions like
 
 ## Problem
 
-_TODO (stage 10)._
-
-## Architecture
-
-_TODO (stage 10): diagram._
+Receipts arrive as paper slips, PDFs, screenshots, and emails, each with its own layout,
+and turning them into usable bookkeeping means typing the vendor, date, items, and totals
+by hand: slow, and easy to get wrong. Plain OCR doesn't solve it: it returns text, not a
+total, and can't tell a subtotal from a tip or notice a receipt entered twice. Receipt
+Agent uses a vision LLM to turn any receipt into structured data, then checks it with
+ordinary code (do the numbers add up? is this a duplicate? an unusual charge?) rather than
+trusting the model, and lets you ask about your spending in plain English, through
+read-only tools so the model never writes to (or queries) the database directly.
 
 ## Tech stack
 
@@ -399,10 +402,6 @@ are committed, under `evaluation/results/wildreceipt/`.
 ran out after 12 of the 20 receipts, which scored 100% on every field (50/50 line items).
 The other 8 (including the hardest cases) weren't run: the WildReceipt evaluation above
 measures real-world accuracy instead, so the free quota goes there. [Latest report](backend/evaluation/results/gemini-3.5-flash/report.md).
-
-## Demo
-
-_TODO: link._
 
 ## Roadmap
 
