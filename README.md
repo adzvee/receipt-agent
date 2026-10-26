@@ -5,8 +5,6 @@ receipt (or forward a receipt email) and the app extracts the details, categoriz
 expense, flags duplicates and unusual charges, and answers questions like
 *"How much did I spend on food in September?"*
 
-> 🚧 Work in progress — built in stages. See [Roadmap](#roadmap).
-
 ## Problem
 
 Receipts arrive as paper slips, PDFs, screenshots, and emails, each with its own layout,
