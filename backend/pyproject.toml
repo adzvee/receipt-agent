@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "python-multipart>=0.0.9",
     "google-genai>=1.0",
+    "httpx>=0.27",  # imported directly for its timeout errors (also used by google-genai)
     "pwdlib[argon2]>=0.2",
     "pyjwt>=2.9",
     "email-validator>=2.2",

@@ -5,6 +5,7 @@ import re
 import time
 from collections.abc import Callable
 
+import httpx
 from google import genai
 from google.genai import errors, types
 from pydantic import ValidationError
@@ -27,6 +28,13 @@ logger = logging.getLogger(__name__)
 # Anything else, like a bad API key (401), will fail the same way every time.
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+# Without a limit, a request whose reply never arrives waits forever (this froze an
+# evaluation run for half an hour). Receipts usually take seconds; 2 minutes is generous.
+REQUEST_TIMEOUT_SECONDS = 120.0
+
+# Network problems where trying again may work: no reply in time, or no connection.
+TRANSIENT_NETWORK_ERRORS = (httpx.TimeoutException, httpx.ConnectError)
+
 # Google sometimes says how long to wait. Per-minute rate limits ask for under a minute,
 # which is worth waiting for. Daily quotas ask for hours, which no retry can fix.
 MAX_WAIT_SECONDS = 60.0
@@ -40,6 +48,7 @@ class GeminiClient:
         max_attempts: int = 3,
         retry_delay_seconds: float = 2.0,
         max_wait_seconds: float = MAX_WAIT_SECONDS,
+        timeout_seconds: float = REQUEST_TIMEOUT_SECONDS,
         sleep: Callable[[float], None] = time.sleep,
     ):
         self._api_key = api_key
@@ -47,6 +56,7 @@ class GeminiClient:
         self._max_attempts = max_attempts
         self._retry_delay_seconds = retry_delay_seconds
         self._max_wait_seconds = max_wait_seconds
+        self._timeout_seconds = timeout_seconds
         self._sleep = sleep  # injectable so tests don't actually wait
         self._client: genai.Client | None = None
 
@@ -55,7 +65,10 @@ class GeminiClient:
         if self._client is None:
             if not self._api_key:
                 raise LLMError("GEMINI_API_KEY is not set. Add it to the .env file.")
-            self._client = genai.Client(api_key=self._api_key)
+            self._client = genai.Client(
+                api_key=self._api_key,
+                http_options=types.HttpOptions(timeout=int(self._timeout_seconds * 1000)),  # ms
+            )
         return self._client
 
     def generate_structured(
@@ -143,6 +156,23 @@ class GeminiClient:
                 logger.warning(
                     "Gemini returned %s (attempt %d/%d); retrying in %.0fs",
                     exc.code,
+                    attempt,
+                    self._max_attempts,
+                    delay,
+                )
+                self._sleep(delay)
+            except TRANSIENT_NETWORK_ERRORS as exc:
+                problem = (
+                    f"no reply within {self._timeout_seconds:.0f}s"
+                    if isinstance(exc, httpx.TimeoutException)
+                    else "couldn't connect"
+                )
+                if attempt == self._max_attempts:
+                    raise LLMError(f"Gemini request failed: {problem}") from exc
+                delay = self._retry_delay_seconds * 2 ** (attempt - 1)
+                logger.warning(
+                    "Gemini request failed: %s (attempt %d/%d); retrying in %.0fs",
+                    problem,
                     attempt,
                     self._max_attempts,
                     delay,

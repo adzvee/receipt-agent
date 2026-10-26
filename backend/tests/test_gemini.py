@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from google.genai import errors, types
 
@@ -114,6 +115,39 @@ def test_suggested_retry_delay_parsing():
     assert suggested_retry_delay(api_error(429, retry_delay="1.5s")) == 1.5
     assert suggested_retry_delay(api_error(429, retry_delay="soon")) is None
     assert suggested_retry_delay(api_error(503)) is None
+
+
+def test_requests_have_a_time_limit():
+    client = GeminiClient(api_key="test-key", model="gemini-test", timeout_seconds=90)
+
+    sdk_client = client._get_client()
+
+    assert sdk_client._api_client._http_options.timeout == 90_000  # milliseconds
+
+
+def test_a_request_with_no_reply_is_retried():
+    response = make_extracted_receipt()
+    client, fake, sleeps = make_client([httpx.ReadTimeout("no reply"), response])
+
+    assert extract(client) == response
+    assert fake.calls == 2
+    assert sleeps == [2.0]
+
+
+def test_repeated_timeouts_become_an_llm_error_instead_of_hanging():
+    timeouts = [httpx.ReadTimeout("no reply")] * 3
+    client, fake, _ = make_client(timeouts)
+
+    with pytest.raises(LLMError, match="no reply within 120s"):
+        extract(client)
+    assert fake.calls == 3
+
+
+def test_connection_failures_are_retried_too():
+    client, _, _ = make_client([httpx.ConnectError("offline")] * 3)
+
+    with pytest.raises(LLMError, match="couldn't connect"):
+        extract(client)
 
 
 def test_permanent_error_is_not_retried():
